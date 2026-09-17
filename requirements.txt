@@ -1,0 +1,18 @@
+# ExtractionPipeline - Python dependencies (conda env: ai-meta-k)
+# Install:  pip install -r requirements.txt
+# Add new packages here when a phase needs them, then commit.
+
+# --- Phase 1: meta-feature extraction ---
+numpy==2.4.6
+pandas==3.0.5
+scipy==1.17.1
+scikit-learn==1.9.0
+openml==0.15.1
+pymfe==0.4.4
+
+# --- Dev tools ---
+black==26.5.1
+
+# --- Phase 3 (later): deep clustering probes ---
+# torch   -> install per CUDA version (differs local vs. Slurm cluster)
+# clustpy
