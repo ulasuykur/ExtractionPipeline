@@ -1,0 +1,20 @@
+# --- IDE (PyCharm) ---
+.idea/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# --- Environments / secrets ---
+.venv/
+venv/
+.env
+
+# --- Generated outputs (regenerate from code, don't version) ---
+outputs/
+*.log
+
+# --- Slurm job output ---
+slurm-*.out
+slurm-*.err
