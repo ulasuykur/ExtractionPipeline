@@ -34,6 +34,26 @@ MIN_FEATURES = 3  # OpenML counts the target -> at least 2 real attributes
 # (p = 20,000 would need ~3 GB). 3,100 keeps CIFAR-10 (3,072 columns).
 MAX_FEATURES = 3_100
 
+# Datasets that failed in extractor.py although they pass the filters
+# (id -> reason); excluded so that every pool dataset can be extracted
+EXCLUDE_IDS: dict[int, str] = {
+    350: "webdata_wXa: sparse text word counts, cannot be loaded as a table",
+    389: "fbis.wc: sparse text word counts, cannot be loaded as a table",
+    391: "re0.wc: sparse text word counts, cannot be loaded as a table",
+    394: "oh5.wc: sparse text word counts, cannot be loaded as a table",
+    # pool review 2026-09-22 (labels do not reflect the data's structure, D4,
+    # or near-duplicate data, D10)
+    41973: "semeion: 10-class digit images reduced to 2 classes; image data",
+    46863: "Fetal_cardiotocography: same data as cardiotocography (1560), "
+    "other label (k=10 vs 3)",
+    23517: "numerai28.6: obfuscated market data, label close to random",
+    46840: "Estimation_of_Obesity_Levels: classes are BMI ranges (thresholded)",
+    41989: "GTSRB-HOG03: 51,839 x 2,916 needs > 1 GB RAM, failed on the laptop",
+    42334: "digits_wrote: MNIST-derived digit images reduced to 2 classes",
+    1038: "gina_agnostic: MNIST-derived digits, odd vs. even (binarized)",
+    40900: "Satellite: satimage (182) relabelled as anomaly vs. normal",
+}
+
 # Synthetic OpenML families that are near-copies of other datasets
 SYNTHETIC_PATTERNS = [
     r"^bng\(",
@@ -111,8 +131,16 @@ def tabular_candidates(meta: pd.DataFrame) -> pd.DataFrame:
         & meta.NumberOfInstances.between(MIN_N, MAX_N)
         & meta.NumberOfFeatures.between(MIN_FEATURES, MAX_FEATURES)
         & (meta.NumberOfSymbolicFeatures <= 1)  # numeric only (1 = target)
+        # all non-target columns numeric: NumberOfSymbolicFeatures does not
+        # count string/date columns, which slipped through before (e.g. Birds,
+        # biosses, art_daily_nojump4)
+        & (meta.NumberOfNumericFeatures >= meta.NumberOfFeatures - 1)
+        & (meta.NumberOfNumericFeatures >= 2)  # >= 2 usable numeric columns
         & (meta.NumberOfMissingValues == 0)
+        & ~meta.did.isin(EXCLUDE_IDS)
     ].copy()
+    if "format" in c.columns:  # sparse ARFF (text word counts) cannot be loaded
+        c = c[~c.format.astype(str).str.lower().str.startswith("sparse")]
     lower = c.name.str.lower()
     c = c[~lower.str.contains("|".join(SYNTHETIC_PATTERNS), regex=True)]
     c = c[~c.name.str.lower().str.contains(IMAGE_NAME_PATTERN, regex=True)]
@@ -163,7 +191,9 @@ def drop_binarized(c: pd.DataFrame) -> pd.DataFrame:
 
 def allocate(available: dict[str, int], targets: dict[str, int]) -> dict[str, int]:
     """Take min(target, available) per bracket; hand missing places to
-    brackets that still have candidates (never to the k=2 bracket)."""
+    brackets that still have candidates. The k=2 bracket only gets extra
+    places as a last resort, when all other brackets are exhausted (user,
+    2026-09-22: stretch the 20% cap rather than end below POOL_SIZE)."""
     alloc = {b: min(targets[b], available[b]) for b in targets}
     missing = sum(targets.values()) - sum(alloc.values())
     while missing > 0:
@@ -171,6 +201,10 @@ def allocate(available: dict[str, int], targets: dict[str, int]) -> dict[str, in
             b for b in targets if alloc[b] < available[b] and not b.startswith("A")
         ]
         if not open_b:
+            a = next(b for b in targets if b.startswith("A"))
+            extra = min(missing, available[a] - alloc[a])
+            alloc[a] += extra
+            missing -= extra
             break
         for b in open_b:
             if missing == 0:
@@ -268,6 +302,11 @@ def build_pool() -> pd.DataFrame:
 
 if __name__ == "__main__":
     pool = build_pool()
+    # safety check: no excluded dataset may end up in the pool
+    leaked = sorted(set(pool.dataset_id) & set(EXCLUDE_IDS))
+    if leaked:
+        raise SystemExit(f"ERROR: excluded ids in pool: {leaked} - pool NOT saved")
+    print(f"\nCheck OK: EXCLUDE_IDS = {len(EXCLUDE_IDS)}, none of them in the pool")
     POOL_PATH.parent.mkdir(exist_ok=True)
     pool.to_csv(POOL_PATH, index=False)
     print(f"Saved to {POOL_PATH}")

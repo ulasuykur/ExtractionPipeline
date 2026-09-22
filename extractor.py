@@ -11,12 +11,18 @@ Design Decisions Log D2-D4, D8, O3.
     Statistical (M6)         skew_mean, skew_sd, kurt_min, kurt_q3, cor_mean
     Information-theor. (M7)  conc_mean
 
-Pipeline:  load (OpenML)  ->  preprocess (drop constant columns)
+Pipeline:  load (OpenML; optional class subset for image variants)
+           ->  preprocess (drop constant columns)
            ->  extract (pymfe, no labels)  ->  table (CSV)
+
+Usage:
+    python extractor.py          # full pool from data/pool.csv (select_pool.py)
+    python extractor.py --test   # small test set below
 """
 
 from __future__ import annotations
 
+import argparse
 import time
 import warnings
 from pathlib import Path
@@ -29,15 +35,16 @@ from pymfe.mfe import MFE
 warnings.filterwarnings("ignore")  # pymfe is chatty about NaNs/precision
 
 RANDOM_STATE = 0  # fixed seed: pymfe samples 12 columns for concentration (M7)
+POOL_PATH = Path("data") / "pool.csv"  # written by select_pool.py
 OUTPUT_PATH = Path("outputs") / "metafeatures.csv"  # outputs/ is git-ignored
 
 # ---------------------------------------------------------------------
-# 1. Test datasets: OpenML id -> name
+# 1. Test datasets (--test): OpenML id -> name
 #    10 from the first prototype + 1 real image dataset (runtime and
-#    constant-pixel test). The final ~100-dataset pool comes later (M4).
+#    constant-pixel test). The real pool is read from data/pool.csv (M4).
 # ---------------------------------------------------------------------
 
-DATASETS: dict[int, str] = {
+TEST_DATASETS: dict[int, str] = {
     61: "iris",
     187: "wine",
     1499: "seeds",
@@ -55,6 +62,9 @@ DATASETS: dict[int, str] = {
 COLUMNS = [
     "dataset_id",
     "name",
+    "source",
+    "group",
+    "classes",
     "k_true",
     "n",
     "p_raw",
@@ -89,12 +99,40 @@ def load_openml_numeric(dataset_id: int) -> tuple[np.ndarray, pd.Series]:
         download_qualities=False,
         download_features_meta_data=False,
     )
-    X_df, y, _, _ = ds.get_data(
-        target=ds.default_target_attribute, dataset_format="dataframe"
-    )
+    if str(ds.format).lower().startswith("sparse"):
+        # sparse ARFF (e.g. webdata_wXa): the dataframe route fails in openml,
+        # so load as arrays and densify (all our datasets fit in memory)
+        X, y, _, _ = ds.get_data(
+            target=ds.default_target_attribute, dataset_format="array"
+        )
+        X = X.toarray() if hasattr(X, "toarray") else np.asarray(X)
+        X_df, y = pd.DataFrame(X), pd.Series(np.asarray(y).ravel())
+    else:
+        X_df, y, _, _ = ds.get_data(
+            target=ds.default_target_attribute, dataset_format="dataframe"
+        )
     X_num = X_df.select_dtypes(include=[np.number])
     keep = X_num.notna().all(axis=1) & y.notna()
     return X_num[keep].to_numpy(dtype=float), y[keep]
+
+
+def take_class_subset(
+    X: np.ndarray, y: pd.Series, dataset_id: int, k: int, n_max: int
+) -> tuple[np.ndarray, pd.Series, str]:
+    """Image variants: keep k randomly drawn classes (fixed seed per variant)
+    and subsample to n_max rows, balanced over the classes, so that n does
+    not reveal k. Returns X, y and the drawn classes (for the table)."""
+    rng = np.random.default_rng([RANDOM_STATE, dataset_id, k])
+    labels = sorted(y.astype(str).unique())
+    classes = sorted(rng.choice(labels, size=k, replace=False))
+    y_str = y.astype(str).to_numpy()
+    per_class = n_max // k
+    idx = []
+    for c in classes:
+        rows = np.flatnonzero(y_str == c)
+        idx.extend(rng.choice(rows, size=min(per_class, len(rows)), replace=False))
+    idx = np.sort(np.array(idx))
+    return X[idx], y.iloc[idx], ";".join(classes)
 
 
 # ---------------------------------------------------------------------
@@ -158,10 +196,19 @@ def extract_metafeatures(X: np.ndarray) -> dict[str, float]:
 # ---------------------------------------------------------------------
 
 
-def process_dataset(dataset_id: int, name: str) -> dict:
-    """Load, preprocess and extract one dataset; returns one table row."""
+def process_dataset(spec: dict) -> dict:
+    """Load, preprocess and extract one dataset; returns one table row.
+
+    spec: one row of the pool (dataset_id, name, source, group, and for
+    image variants subset_k and n_max)."""
     start = time.perf_counter()
+    dataset_id = int(spec["dataset_id"])
     X, y = load_openml_numeric(dataset_id)
+    classes = ""
+    if pd.notna(spec.get("subset_k")):
+        X, y, classes = take_class_subset(
+            X, y, dataset_id, int(spec["subset_k"]), int(spec["n_max"])
+        )
     p_raw = X.shape[1]
     X = drop_constant_columns(X)
     if X.shape[1] < 2:
@@ -169,7 +216,10 @@ def process_dataset(dataset_id: int, name: str) -> dict:
 
     row = {
         "dataset_id": dataset_id,
-        "name": name,
+        "name": spec["name"],
+        "source": spec.get("source", "test"),
+        "group": spec.get("group", f"tab_{dataset_id}"),
+        "classes": classes,
         "k_true": int(y.nunique()),  # D4: classes actually present
         "n": X.shape[0],
         "p_raw": p_raw,
@@ -180,12 +230,13 @@ def process_dataset(dataset_id: int, name: str) -> dict:
     return row
 
 
-def build_metafeature_table(datasets: dict[int, str]) -> pd.DataFrame:
+def build_metafeature_table(specs: list[dict]) -> pd.DataFrame:
     rows = []
-    for did, name in datasets.items():
+    for spec in specs:
+        did, name = int(spec["dataset_id"]), spec["name"]
         print(f"[{did:>5}] {name}: ...", end=" ", flush=True)
         try:
-            row = process_dataset(did, name)
+            row = process_dataset(spec)
             rows.append(row)
             print(
                 f"done (n={row['n']}, p={row['p_raw']}->{row['p_used']}, "
@@ -198,15 +249,40 @@ def build_metafeature_table(datasets: dict[int, str]) -> pd.DataFrame:
     return pd.DataFrame(rows).reindex(columns=COLUMNS)
 
 
+def load_specs(test: bool) -> list[dict]:
+    """Dataset list: the test set (--test) or the pool from data/pool.csv."""
+    if test:
+        return [{"dataset_id": d, "name": n} for d, n in TEST_DATASETS.items()]
+    if not POOL_PATH.exists():
+        raise SystemExit(f"{POOL_PATH} not found - run select_pool.py first")
+    pool = pd.read_csv(POOL_PATH)
+    # safety check: refuse to run on a stale pool that contains excluded ids
+    from select_pool import EXCLUDE_IDS
+
+    leaked = sorted(set(pool.dataset_id) & set(EXCLUDE_IDS))
+    if leaked:
+        raise SystemExit(
+            f"{POOL_PATH} is stale: contains excluded ids {leaked} - "
+            "run select_pool.py first"
+        )
+    print(f"Pool check OK: {len(pool)} datasets, no excluded ids "
+          f"({len(EXCLUDE_IDS)} exclusions)\n")
+    return pool.to_dict("records")
+
+
 if __name__ == "__main__":
-    table = build_metafeature_table(DATASETS)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", action="store_true", help="use the test set")
+    args = parser.parse_args()
+
+    table = build_metafeature_table(load_specs(args.test))
 
     pd.set_option("display.width", 200)
     pd.set_option("display.float_format", lambda v: f"{v:,.4f}")
     print("\n=== Meta-feature table ===\n")
     print(table.to_string(index=False))
 
-    n_nan = int(table.drop(columns=["runtime_s"]).isna().sum().sum())
+    n_nan = int(table.drop(columns=["runtime_s", "classes"]).isna().sum().sum())
     print(f"\nMissing values in table: {n_nan}")
 
     OUTPUT_PATH.parent.mkdir(exist_ok=True)
