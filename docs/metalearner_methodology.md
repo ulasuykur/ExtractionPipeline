@@ -1,0 +1,520 @@
+# Meta-learner methodology
+
+Detailed methodology of the meta-learner that estimates the number of clusters *k*.
+This file is the detailed record; the project docs only reference it
+(decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
+
+> **Current status (last updated 2026-09-24)**
+> - Evaluation protocol: **frozen** on `master` (Section 2).
+> - Phase 2, static-only baseline: **completed** on `master` (Section 5).
+> - Structure-based meta-features: **planned, not started** as of 2026-09-24 (separate git branch, Section 7).
+> - Learning curve (O1): **postponed**, design fixed (Section 6).
+>
+> The [History](#history) table is the authoritative record of what has been done.
+> Every development step adds a dated row there and updates this box.
+
+| | |
+|---|---|
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner) |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored) |
+| Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
+
+## History
+
+| date | branch | step | documented in |
+|---|---|---|---|
+| 2026-09-24 | `master` | Evaluation protocol frozen: `evaluation.py`, `data/cv_folds.csv` | Section 2 |
+| 2026-09-24 | `master` | Phase 2 static-only run (13 configurations), results in `results/phase2/` | Section 5 |
+| 2026-09-24 | `master` | Decision: 8 static meta-features do not beat the baseline; continue with structure-based meta-features on a separate branch | Section 7 |
+| 2026-09-24 | `master` | Exploration scripts added: `experiments/phase2_exploration/` | Appendix A |
+
+**Contents**
+0. [Purpose and scope](#0-purpose-and-scope)
+1. [Inputs](#1-inputs)
+2. [Evaluation protocol (frozen)](#2-evaluation-protocol-frozen)
+3. [Transforms](#3-transforms)
+4. [Models compared](#4-models-compared)
+5. [Results](#5-results)
+6. [Learning curve (O1) – postponed](#6-learning-curve-o1--postponed)
+7. [Conclusion of Phase 2 and consequences](#7-conclusion-of-phase-2-and-consequences)
+8. [Reproducibility](#8-reproducibility)
+9. [References and quote verification](#9-references-and-quote-verification)
+- [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
+
+---
+
+## 0. Purpose and scope
+
+The meta-learner is a **regressor** (supervisor requirement) that maps meta-features of a
+dataset to an estimate of *k*, the number of classes present in the dataset (D4).
+
+- **Phase 2 (this document, Sections 1–7):** a *static-only* meta-learner, trained only on
+  the 8 static meta-features from Phase 1 (O3). It is the reference against which Phase 4
+  (static + probe features from short DEC/IDEC runs) will be compared.
+- Because Phase 4 must be compared on exactly the same footing, the **evaluation protocol
+  (Section 2) is frozen** in `evaluation.py` and `data/cv_folds.csv` and is reused unchanged.
+
+---
+
+## 1. Inputs
+
+- **Table:** `data/metafeatures.csv`, the frozen Phase 1 output (D10): 100 datasets
+  (83 tabular, 8 image originals, 9 image class-subset variants), 0 missing values in the
+  model columns.
+- **Model input (exactly 8 columns, O3):** `log_n`, `log_p`, `skew_mean`, `skew_sd`,
+  `kurt_min`, `kurt_q3`, `cor_mean`, `conc_mean`.
+- **Target:** `k_true` (number of classes present, D4). Range 2–46, median 4.
+- **Never model input (bookkeeping):** `dataset_id`, `name`, `source`, `group`, `classes`,
+  `n`, `p_raw`, `p_used`, `runtime_s`. `evaluation.load_metafeatures()` checks that no
+  feature column is also a bookkeeping or target column.
+- **Row key:** `name` (unique); `dataset_id` is not unique because the image variants
+  share the id of their source.
+- **Groups:** `group`, 91 groups: 88 single datasets and 3 image sources with 4 rows each
+  (MNIST, Fashion-MNIST, Kuzushiji-MNIST with k = 2, 3, 5, 10).
+- Pool composition, filters and known limitations: Thesis Writing Notes M4 (not repeated here).
+
+Distribution of the target in the pool:
+
+| k | 2 | 3 | 4–5 | 6–9 | 10–19 | 20–50 |
+|---|---|---|---|---|---|---|
+| datasets | 26 | 15 | 21 | 14 | 18 | 6 |
+
+The six datasets with k ≥ 20 (leaf 30, micro-mass 20, GTSRB-HueHist 43, isolet 26,
+binary_alpha_digits 36, Devnagari-Script 46) cause 43% of the total absolute error of
+the median baseline (177 of 410). This matters for how MAE is read (Section 2.6).
+
+---
+
+## 2. Evaluation protocol (frozen)
+
+All settings below are implemented in `evaluation.py`. Decided with the user on
+2026-09-24 (protocol decisions P1–P8); the evidence behind each choice comes from the
+exploratory runs in Appendix A.
+
+### 2.1 Unit of evaluation: the dataset
+
+Each dataset is one meta-level example; cross-validation splits the *datasets* into folds.
+Brazdil et al. describe exactly this meta-level setting: *"The multiple pass evaluation
+with cross-validation requires that the base-level datasets are considered as instances."*
+(Brazdil et al. 2022, p. 45, §3.4.2) [Q1]
+
+### 2.2 Splitter (P1): stratified grouped 5-fold cross-validation
+
+`StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=r)` from scikit-learn 1.9.0.
+
+- **Grouped** on `group`: all variants of one image source land in the same fold. Otherwise
+  a near-copy of a test dataset (e.g. MNIST with k = 3 while testing MNIST with k = 5)
+  would be in the training data. Brazdil et al. name this as a source of bias: *"it is
+  important to ensure that the dataset used for evaluation is not included in the
+  meta-dataset accompanying the metalearning system, as this would lead to a biased
+  estimate of performance."* (p. 45, §3.4.1, "Avoiding biased evaluation") [Q2]
+- **Stratified** on six k-bins: 2 | 3 | 4–5 | 6–9 | 10–19 | 20–50. These are the pool
+  brackets of D10, except that k ≥ 20 is a separate bin, so that each test fold contains
+  1–2 of the six datasets with very large k.
+- Why stratified (Appendix A.1): with plain grouped splitting a test fold contained between
+  1 and 9 datasets with k = 2 and between 0 and 4 with k ≥ 20; stratified with six bins it
+  contains 5–6 and 1–2. The median baseline's repeat-to-repeat standard deviation dropped
+  from 0.069 to 0.018. For the regressors (log k) the spread was similar under all
+  splitters (≈ 0.10–0.13), so stratification makes folds comparable but does not change results.
+- Resulting folds (`python evaluation.py --make-folds`): test parts of 19–21 datasets;
+  per test part k2 5–6, k3 3, k4–5 4–5, k6–9 2–3, k10–19 3–4, k20–50 1–2 datasets.
+
+### 2.3 Folds and repeats (P2): 5 folds × 10 repeats, seeds 0–9
+
+- Each fit trains on ~80 and tests on ~20 datasets; the full split is repeated 10 times with
+  `random_state = 0 … 9` (50 train/test pairs).
+- Why (Appendix A.2): the scheme barely changes the mean (all within ≈ 0.05 MAE), but
+  5 × 10 gave the most stable estimate (repeat-mean sd 0.092 for k-NN vs. 0.126 for
+  10-fold and 0.132 for 3-fold); 20 repeats added nothing. 10-fold would leave only
+  ~10 datasets per test part.
+
+### 2.4 Frozen fold file (P3)
+
+The split is created once and saved to `data/cv_folds.csv` (columns `name, group, repeat,
+fold`), committed to git. Every later run reads this file instead of re-creating the split,
+so it cannot change silently (e.g. after a library update or a reordered table).
+`evaluation.check_folds()` verifies on every load that each dataset is tested exactly once
+per repeat and that no group is split across folds. Brazdil et al.: *"When comparing the
+performance of various metalearning/AutoML systems, this division should be constant in all
+comparisons."* (p. 43, §3.4.1, para 1) [Q3]
+
+### 2.5 Hyperparameter tuning: nested cross-validation (P4)
+
+Hyperparameters are chosen **inside** each training part with `GridSearchCV` and an inner
+`GroupKFold(5)` (groups kept together), scored with exactly the protocol's MAE. The test
+part is never used for any choice. Brazdil et al.: *"As these systems do not (and must not)
+use the test set in any way, an additional set of cases is required (Varma and Simon,
+2006)."* (p. 44, §3.4.1) [Q4]; *"Note that the internal division can also be upgraded to
+include a cross-validation procedure in the inner evaluation concerned with selection."*
+(p. 44) [Q5]. The cited study concludes: *"Using CV to compute an error estimate for a
+classifier that has itself been tuned using CV gives a significantly biased estimate of the
+true error."* (Varma & Simon 2006, Abstract, Conclusion) [Q6]. Cawley & Talbot (2010) show
+that *"some common performance evaluation practices are susceptible to a form of selection
+bias as a result of this form of over-fitting and hence are unreliable."* (Abstract) [Q7]
+
+Grids (`train_static.py`; widened after the exploration, where chosen values sat at the
+grid edges):
+
+| model | grid |
+|---|---|
+| Ridge | `alpha` ∈ 10^-3 … 10^5 (17 values, log-spaced) |
+| k-NN | `n_neighbors` ∈ {1, 3, 5, 7, 10, 15, 20, 30} × `weights` ∈ {uniform, distance} |
+| Random Forest (300 trees, `random_state=0`) | `min_samples_leaf` ∈ {1, 2, 5, 10, 20} × `max_features` ∈ {0.33, 0.5, 1.0} |
+
+### 2.6 Metrics (P5)
+
+For a test part with true values *k_i* and predictions *k̂_i*:
+
+- Predictions are clipped at 2: *k̃_i* = max(*k̂_i*, 2) (there is no k < 2 in the pool).
+- **MAE** (primary) on the original k scale, on the continuous clipped prediction:
+  MAE = (1/m) Σ |*k_i* − *k̃_i*|.
+- **Within ±1** (secondary): share of datasets with |round(*k̃_i*) − *k_i*| ≤ 1.
+- **Aggregation:** the 5 folds of a repeat are averaged; reported is the mean ± sd over the
+  10 repeat averages (the sd over single folds would mainly reflect which datasets happen to
+  be in a fold).
+- **Breakdown** (secondary, not used for decisions): MAE and within ±1 per k-bin and for
+  tabular vs. image, pooled over all repeats.
+- Notes for reading the numbers: (1) MAE is dominated by the k ≥ 20 tail (Section 1).
+  (2) Within ±1 is lenient for small k (k = 2: 1–3 counts as a hit) and strict for large k.
+  (3) Clipping at 2 was practically irrelevant (0–0.4% of predictions below 2), and MAE on
+  rounded vs. continuous predictions differed by ≤ 0.01 (Appendix A.3).
+
+**Baseline:** a model that always predicts the median k **of the training part** (recomputed
+in every fold). For MAE, the median is the best possible constant prediction, so this
+baseline is deliberately hard to beat.
+
+### 2.7 Statistical comparison (P6): corrected resampled t-test
+
+Two configurations are compared on the identical 50 train/test pairs. For the per-pair
+differences *d_j* = MAE_A,j − MAE_B,j (j = 1 … J, J = 50):
+
+t = d̄ / √[(1/J + n_test/n_train) · s_d²], with J − 1 degrees of freedom,
+
+where s_d² is the sample variance of the *d_j* and n_test/n_train ≈ 20/80. The correction
+factor accounts for the overlap between training parts; it is the corrected resampled
+t-test of Nadeau & Bengio (2003) as applied to repeated k-fold CV by Bouckaert & Frank (2004)
+(references in Section 9; **not verified yet**). Reported with the mean difference and its
+corrected 95% interval.
+
+Why (Appendix A.5): in 300 simulated pools in which two models were *exactly* equally good,
+a plain paired t-test declared a significant difference in 51% of pools (nominal 5%); the
+corrected test did so in 1%. The corrected test is therefore safe but conservative: with
+our data an MAE improvement must be about **0.32** (≈ 8%) to be detectable.
+
+### 2.8 Rule for Phase 4 (P7)
+
+If probe runs fail on some datasets, both static-only and static+probe are re-evaluated on
+the same remaining datasets, with their folds taken from `data/cv_folds.csv`
+(`evaluation.check_folds` accepts a subset and `iter_splits` skips missing rows).
+
+---
+
+## 3. Transforms
+
+### 3.1 Signed log for skewness and kurtosis columns
+
+`skew_mean`, `skew_sd`, `kurt_min`, `kurt_q3` are transformed with
+**sign(x) · log(1 + |x|)**. Reason: very uneven ranges and negative values (M9):
+
+| column | min | median | max | negative values |
+|---|---|---|---|---|
+| `skew_mean` | −1.22 | 2.00 | 91.3 | 10 |
+| `skew_sd` | 0.04 | 2.46 | 88.6 | 0 |
+| `kurt_min` | −2.00 | −1.22 | 45.6 | 86 |
+| `kurt_q3` | −1.59 | 6.86 | 34,775 | 19 |
+
+A plain log is undefined for negative values; the signed log keeps the sign, is 0 at 0 and
+compresses large values. It has no fitted parameters, so it cannot leak information from the
+test part. It is applied for all three models: Ridge and k-NN need it (otherwise
+`kurt_q3` dominates coefficients and distances); Random Forest is unaffected by monotone
+transforms, so one shared preprocessing is simplest. `log_n`, `log_p` are already on a log
+scale; `cor_mean`, `conc_mean` lie in [0, 1] and are left unchanged.
+
+### 3.2 Scaling
+
+Ridge and k-NN: `StandardScaler`, fitted on the training part only (inside the pipeline).
+Random Forest: no scaling (trees compare values within a column only).
+
+### 3.3 Target: raw k vs. log k
+
+Every regressor is trained twice: on k directly, and on log(k) with the prediction
+converted back by exp (`TransformedTargetRegressor`). All metrics and the tuning score
+stay on the k scale. With log k, errors count by factor (predicting 4 for k = 2 weighs
+the same as predicting 20 for k = 10), so the few large-k datasets no longer dominate
+training.
+
+---
+
+## 4. Models compared
+
+13 configurations, all on the identical folds:
+
+| configuration | inputs | target |
+|---|---|---|
+| **median baseline** | none | – |
+| Ridge, k-NN, Random Forest | 8 static meta-features | raw k / log k |
+| Ridge, k-NN, Random Forest | `log_n` + `log_p` only | raw k / log k |
+
+- **Ridge:** linear model with L2 penalty; the simplest model that uses all features.
+- **k-NN:** predicts from the most similar datasets in meta-feature space; the classic
+  meta-learning approach of recommending from similar past datasets.
+- **Random Forest:** non-linear, robust to irrelevant features; standard in meta-learning.
+- **Size-only inputs (`log_n` + `log_p`):** the "heuristics based on dataset
+  size/dimension" baseline listed in the supervisor's thesis proposal [Q8].
+  *Disclosure:* this configuration was added after the exploratory runs (Appendix A.6)
+  had shown that removing the six distribution features helped; it is therefore not an
+  a-priori hypothesis, and its result is interpreted with that in mind (Section 5.2, finding 3).
+
+---
+
+## 5. Results
+
+Full run on the user's PC, 2026-09-24 (14.7 min; versions and fingerprints in Section 8).
+Source: `results/phase2/summary.csv`, `breakdown.csv`, `hyperparameters.csv`.
+
+### 5.1 Main table
+
+Mean ± sd over 10 repeats. Δ = MAE(model) − MAE(baseline); negative = better than the
+baseline; 95% interval and p from the corrected t-test (Section 2.7).
+
+| configuration | MAE | within ±1 | Δ MAE [95% interval] | p |
+|---|---|---|---|---|
+| **median baseline** | **4.112 ± 0.010** | **36.0%** | – | – |
+| Ridge, 8 features, raw k | 4.598 ± 0.057 | 16.2% | +0.485 [+0.208, +0.763] | 0.001 |
+| Ridge, 8 features, log k | 4.111 ± 0.033 | 29.6% | −0.001 [−0.102, +0.099] | 0.979 |
+| k-NN, 8 features, raw k | 4.539 ± 0.068 | 20.4% | +0.427 [+0.064, +0.790] | 0.022 |
+| k-NN, 8 features, log k | 4.123 ± 0.079 | 32.8% | +0.011 [−0.214, +0.236] | 0.925 |
+| RF, 8 features, raw k | 4.640 ± 0.120 | 15.6% | +0.528 [+0.191, +0.864] | 0.003 |
+| RF, 8 features, log k | 4.037 ± 0.071 | 32.1% | −0.075 [−0.243, +0.092] | 0.371 |
+| Ridge, size only, raw k | 4.451 ± 0.024 | 20.2% | +0.338 [+0.032, +0.645] | 0.031 |
+| Ridge, size only, log k | 4.022 ± 0.026 | 33.7% | −0.091 [−0.233, +0.052] | 0.207 |
+| k-NN, size only, raw k | 4.186 ± 0.136 | 26.5% | +0.074 [−0.430, +0.578] | 0.769 |
+| **k-NN, size only, log k** | **3.767 ± 0.066** | **38.9%** | **−0.345 [−0.630, −0.061]** | **0.018** |
+| RF, size only, raw k | 4.473 ± 0.159 | 26.2% | +0.361 [−0.118, +0.840] | 0.136 |
+| RF, size only, log k | 3.844 ± 0.095 | 37.2% | −0.268 [−0.580, +0.044] | 0.090 |
+
+![MAE and within ±1 of all configurations vs. the median baseline](../results/phase2/fig_scores.png)
+
+![Predicted vs. true k per dataset](../results/phase2/fig_pred_vs_true.png)
+
+### 5.2 Findings
+
+1. **Raw k hurts.** All six raw-k configurations are worse than the baseline, four of them
+   significantly (p ≤ 0.031). Trained on raw k, the models are pulled towards the large-k
+   datasets and over-predict small k (k = 2, 3 predicted as ≈ 5–8, top row of the
+   predicted-vs-true figure).
+2. **The 8 static meta-features do not beat the baseline.** With log k, the three models
+   reach MAE 4.04–4.12 against 4.11 (all p ≥ 0.37) and fewer hits within ±1 (30–33% vs.
+   36%). Tuning chose strong smoothing (Ridge `alpha` 100–316 in 44 of 50 folds; k-NN
+   10–30 neighbours in 39 of 50), i.e. predictions close to a constant.
+3. **Size only is slightly better, but mostly on image data.** k-NN on `log_n` + `log_p`
+   with log k is the only configuration significantly better than the baseline
+   (Δ = −0.345, p = 0.018); RF is similar but not significant (p = 0.09).
+   - Of its total gain over the baseline, **87% comes from the 17 image datasets**
+     (30.0 of 34.5 summed absolute error); on the 83 tabular datasets the gain is 0.05 per
+     dataset. The model essentially learns "very large n and p → image source → k ≈ 10".
+     This is partly a consequence of how the pool was built (large image originals with
+     k = 10, small variants with k ≤ 5).
+   - It is one of 12 comparisons against the baseline. With a Bonferroni correction
+     (0.05 / 12 ≈ 0.004) it would not be significant. (The multiplicity correction was not
+     part of the frozen protocol; it is reported as additional caution.)
+   - Because the configuration was added after the exploration (Section 4), it is a
+     post-hoc finding.
+4. **Adding the six distribution features makes the size signal worse** (e.g. k-NN log k:
+   3.77 size only vs. 4.12 with all 8), consistent with irrelevant features adding noise
+   (Brazdil et al.: *"The improvement can be attributed to the fact that 'noisy' attributes
+   have been dropped."*, p. 67 [Q9], said about feature selection at the meta level).
+   On the tabular datasets, RF with all 8 features is even slightly worse than the baseline
+   (+0.08 per dataset).
+
+### 5.3 Where the errors are
+
+MAE per k-bin and source (pooled over repeats), for the baseline, the best 8-feature
+configuration and the best size-only configuration (all with log k where applicable):
+
+| subgroup (datasets) | median baseline | RF, 8 features | k-NN, size only |
+|---|---|---|---|
+| k = 2 (26) | **2.06** | 2.76 | 2.44 |
+| k = 3 (15) | **1.06** | 1.84 | 1.21 |
+| k = 4–5 (21) | **0.52** | 0.81 | 0.94 |
+| k = 6–9 (14) | 3.08 | 2.35 | **2.07** |
+| k = 10–19 (18) | 6.16 | 4.80 | **4.59** |
+| k = 20–50 (6) | 29.45 | 27.99 | **27.32** |
+| tabular (83) | 3.49 | 3.57 | **3.43** |
+| image (17) | 7.16 | 6.31 | **5.40** |
+
+The models trade accuracy on small k (where the baseline, predicting ≈ 4, is already
+close) for slightly smaller errors on larger k. None of them comes close to the k ≥ 20
+datasets: predictions for these stay around 4–9 (e.g. Devnagari-Script, k = 46).
+
+### 5.4 Known limitations of the pool (M4)
+
+| dataset | k | median baseline | RF, 8 features, log k | k-NN, size only, log k |
+|---|---|---|---|---|
+| Speech (anomaly benchmark) | 2 | 4.1 | 4.6 | 4.6 |
+| cnae-9 (2 of 9 classes) | 2 | 4.0 | 5.3 | 5.5 |
+| gina_prior2 (MNIST-derived, own group) | 10 | 4.0 | 4.6 | 3.7 |
+
+Mean predictions over repeats. The feared advantage of gina_prior2 from mnist_784 being in
+the training data is not visible (predictions ≈ 4 instead of ≈ 10).
+
+### 5.5 Consistency check
+
+The results on the user's PC agree with the exploratory sandbox runs (Appendix A): the
+same splits (identical fold file content, Section 8) and the same pattern (8 features ≈
+baseline; size-only k-NN ≈ 3.77).
+
+---
+
+## 6. Learning curve (O1) – postponed
+
+Decided 2026-09-24: the learning curve is run once the feature set is final, because it
+asks whether more datasets would help *that* set. The design is fixed now so that it cannot
+be adapted to the result:
+
+- Test folds as in Section 2; only the training part is subsampled (by group, stratified by
+  k-bin) to 25/50/75/100% (≈ 20/40/60/80 training datasets), 5 random draws per fraction.
+  (In the exploration, a step of this design had a noise level of ≈ 0.02 MAE; subsampling
+  the whole pool first was 15–20 times noisier, Appendix A.4.)
+- **Plateau rule:** the curve has leveled off if the MAE improves by less than 5% from 75% to
+  100% **and** the corrected t-test (Section 2.7) is not significant.
+- **Additional condition:** a flat curve closes O1 as "100 datasets are enough" only if the
+  model at 100% beats the median baseline. Otherwise the conclusion is "the features lack
+  signal", which more datasets would not fix.
+
+---
+
+## 7. Conclusion of Phase 2 and consequences
+
+**Result.** The 8 static meta-features do not allow the meta-learner to predict k better
+than always guessing the median. The only improvement comes from dataset size, mainly by
+recognizing the large image datasets.
+
+**Why (interpretation).** The selected features describe single columns (skewness,
+kurtosis) and pairwise dependence (correlation, concentration), not how many groups of
+points exist. Controlled check with the Fashion-MNIST variants (same images, n = 5,000,
+only k changes): none of the six distribution features moves with k.
+
+| | k | skew_mean | skew_sd | kurt_min | kurt_q3 | cor_mean | conc_mean |
+|---|---|---|---|---|---|---|---|
+| Fashion-MNIST_k2 | 2 | 3.70 | 10.80 | −1.76 | 2.82 | 0.221 | 0.029 |
+| Fashion-MNIST_k3 | 3 | 4.85 | 10.31 | −1.59 | 18.90 | 0.193 | 0.014 |
+| Fashion-MNIST_k5 | 5 | 2.27 | 6.47 | −1.72 | 2.15 | 0.204 | 0.039 |
+| Fashion-MNIST | 10 | 3.62 | 12.72 | −1.74 | 4.42 | 0.214 | 0.022 |
+
+(MNIST and KMNIST behave the same way.) This fails Brazdil et al.'s first requirement for
+meta-features: *"Discriminative power. The set of metafeatures should contain information
+that distinguishes between the base-algorithms in terms of their performance."* (p. 53,
+§4.1) [Q10]. A negative result of this kind has a precedent: for one of their targets,
+Pimentel & de Carvalho report that *"the average and majority baselines presented the best
+predictive performance for the MAPE, MRAE and RRMSE measures."* (2020, p. 6, §6.1.1) [Q11]
+(their target is the k chosen by a validity index for k-means, not the class count; M1).
+
+**Consequences (decided by the user, 2026-09-24).** *This is the plan as of 2026-09-24;
+the [History](#history) table shows what has been done since.*
+- The static-only result stands as the Phase 2 reference (on `master`).
+- Next step, on a separate git branch: add meta-features that describe the *structure* of
+  the point cloud (candidates to be fixed before testing), evaluated with this unchanged
+  protocol. All tried feature sets are reported, not only the best one.
+- For Phase 4: an improvement must be ≈ 0.32 MAE or larger to be detectable with the
+  corrected test (Section 2.7).
+
+---
+
+## 8. Reproducibility
+
+```
+pip install -r requirements.txt           # conda env ai-meta-k, Python 3.11.15
+python evaluation.py --make-folds         # once; creates data/cv_folds.csv (refuses to overwrite)
+python evaluation.py --check              # optional: re-check the fold file
+python train_static.py                    # full run, ~15 min on the user's PC
+python train_static.py --repeats 1        # quick test run; does not touch results/
+```
+
+| item | value |
+|---|---|
+| Python / numpy / pandas / scipy / scikit-learn / matplotlib | 3.11.15 / 2.4.6 / 3.0.5 / 1.17.1 / 1.9.0 / 3.10.9 |
+| seeds | splits: `random_state` = repeat (0–9); Random Forest: 0 |
+| `metafeatures.csv` SHA-256 | `ab77ee3d…25e02fb` |
+| `cv_folds.csv` SHA-256 | `6bc096af…868b2` (Windows line endings, as written on the PC); `721afc6e…3c5b4f` for the identical content with Linux line endings |
+| runtime (full run) | 879 s |
+
+Output files (`results/phase2/`): `summary.csv` (one row per configuration incl. the
+t-test against the baseline), `fold_scores.csv` (50 × 13 rows), `hyperparameters.csv`
+(chosen values per fold), `breakdown.csv`, `fig_scores.png`, `fig_pred_vs_true.png`,
+`run_info.json`. Per-dataset predictions are in `outputs/phase2/predictions.csv`
+(git-ignored; regenerated deterministically by the run).
+
+---
+
+## 9. References and quote verification
+
+Location format: paper / page / paragraph. "Verified" = the exact wording was checked in
+the source text; the column says how.
+
+| # | quote (short) | location | ends in citation? | verification |
+|---|---|---|---|---|
+| Q1 | "The multiple pass evaluation with cross-validation requires that the base-level datasets are considered as instances." | Brazdil et al. 2022 / p. 45 / §3.4.2, para 1 | no | verified in the project PDF (full text) |
+| Q2 | "it is important to ensure that the dataset used for evaluation is not included in the meta-dataset …, as this would lead to a biased estimate of performance." | Brazdil et al. 2022 / p. 45 / §3.4.1, "Avoiding biased evaluation", para 1 | no | verified in the project PDF |
+| Q3 | "When comparing the performance of various metalearning/AutoML systems, this division should be constant in all comparisons." | Brazdil et al. 2022 / p. 43 / §3.4.1, para 1 | no | verified in the project PDF |
+| Q4 | "As these systems do not (and must not) use the test set in any way, an additional set of cases is required (Varma and Simon, 2006)." | Brazdil et al. 2022 / p. 44 / §3.4.1, "Inner evaluation carried out by metalearning/AutoML systems", para 2 | **yes** → Varma & Simon 2006; its meaning is confirmed by Q6 | verified in the project PDF |
+| Q5 | "Note that the internal division can also be upgraded to include a cross-validation procedure in the inner evaluation concerned with selection." | Brazdil et al. 2022 / p. 44 / same subsection, para 4 | no | verified in the project PDF |
+| Q6 | "Using CV to compute an error estimate for a classifier that has itself been tuned using CV gives a significantly biased estimate of the true error." | Varma & Simon 2006 / p. 1 / Abstract, Conclusion | no | confirmed in the PDF by the user, 2026-09-24 |
+| Q7 | "some common performance evaluation practices are susceptible to a form of selection bias as a result of this form of over-fitting and hence are unreliable." | Cawley & Talbot 2010 / p. 2079 / Abstract | no | confirmed in the PDF by the user, 2026-09-24 |
+| Q8 | "Compare against simple baselines (e.g., fixed k, heuristics based on dataset size/dimension, or classical internal metrics if desired)" | Aljoud 2026, thesis proposal / p. 2 / §3 Tasks, last item | no | verified in the project PDF (supervisor's proposal, not peer-reviewed) |
+| Q9 | "The improvement can be attributed to the fact that 'noisy' attributes have been dropped." | Brazdil et al. 2022 / p. 67 / §4.7.1, para 4 | no, but it explains the previous sentence, which cites Todorovski et al. 2000 and Kalousis & Hilario 2001a (not checked) | verified in the project PDF |
+| Q10 | "Discriminative power. The set of metafeatures should contain information that distinguishes between the base-algorithms in terms of their performance." | Brazdil et al. 2022 / p. 53 / §4.1, "What are good dataset features?", 1st item | no | verified in the project PDF |
+| Q11 | "the average and majority baselines presented the best predictive performance for the MAPE, MRAE and RRMSE measures." | Pimentel & de Carvalho 2020 / p. 6 / §6.1.1 "Elbow technique", para 2 (bottom of left column, continues in right column) | no | verified in the project PDF (page image) |
+
+**NOT VERIFIED** (as of 2026-09-24): cited without a quote; content and details still to be checked in the papers:
+- Nadeau, C., Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*
+  52, 239–281. https://doi.org/10.1023/A:1024068626366
+- Bouckaert, R. R., Frank, E. (2004). Evaluating the replicability of significance tests
+  for comparing learning algorithms. *PAKDD 2004*, LNCS 3056, 3–12 (link to be added after checking).
+
+References:
+- Brazdil, P., van Rijn, J. N., Soares, C., Vanschoren, J. (2022). *Metalearning:
+  Applications to Automated Machine Learning and Data Mining*, 2nd ed. Springer.
+  https://doi.org/10.1007/978-3-030-67024-5
+- Cawley, G. C., Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent
+  selection bias in performance evaluation. *JMLR* 11, 2079–2107.
+  https://jmlr.org/papers/v11/cawley10a.html
+- Varma, S., Simon, R. (2006). Bias in error estimation when using cross-validation for model
+  selection. *BMC Bioinformatics* 7, 91. https://doi.org/10.1186/1471-2105-7-91
+- Pimentel, B. A., de Carvalho, A. C. P. L. F. (2020). A meta-learning approach for
+  recommending the number of clusters for clustering algorithms. *Knowledge-Based Systems*
+  195, 105682. https://doi.org/10.1016/j.knosys.2020.105682
+- Aljoud, M. (2026). Bachelor Thesis Proposal: Meta-Learning the Number of Clusters for Deep
+  Clustering. LMU Munich (unpublished).
+
+---
+
+## Appendix A – Exploratory analyses before the protocol was frozen
+
+Run in the Claude sandbox on the same `metafeatures.csv` (2026-09-24), with default or
+moderately chosen settings. They informed the protocol decisions; **they are not official
+results**. The scripts are in `experiments/phase2_exploration/` (see its README); they
+reproduce the numbers below.
+
+- **A.1 Splitter** (50 repeats, default models, log k): plain `GroupKFold` vs.
+  `StratifiedGroupKFold` with the 5 pool brackets vs. with 6 bins. Fold composition and
+  repeat-mean sd as reported in Section 2.2.
+- **A.2 Folds × repeats** (k-NN log k, repeat-mean sd; smallest MAE difference detectable
+  with the corrected test): 3 × 10: 0.132 / 0.37; **5 × 10: 0.092 / 0.32**; 5 × 20: 0.089 /
+  0.33; 10 × 10: 0.126 / 0.34. Leave-one-group-out gave the same means (baseline 4.10, k-NN
+  4.18, RF 4.16).
+- **A.3 Metric details:** predictions below 2: 0–0.4%; MAE on rounded vs. continuous
+  predictions: difference ≤ 0.01.
+- **A.4 Learning-curve noise** (only the noise was computed, not the curve): sd of the
+  75% → 100% step over 10 repeats ≈ 0.05–0.06 per repeat, ≈ 0.02 for the 10-repeat mean with
+  5 draws; subsampling the pool first: 0.32–0.45.
+- **A.5 t-test simulation:** 300 synthetic pools (real k distribution and group structure,
+  8 pure-noise features); model A = k-NN on features 1–4, model B = k-NN on features 5–8
+  (equally good by construction). Rejections at α = 0.05: plain paired t-test 51%,
+  corrected 1%.
+- **A.6 Why the static features fail** (log k, moderate fixed settings): Spearman
+  correlation with k: `log_n` 0.22 (p = 0.03), all other features |ρ| ≤ 0.17. Permutation
+  test (k shuffled, 20 permutations): RF MAE 3.98 vs. 4.31 ± 0.10 with shuffled k
+  (p ≈ 0.05), k-NN p ≈ 0.10, Ridge p ≈ 0.19. Feature subsets: `log_n` + `log_p` only gave
+  k-NN 3.77, RF 3.87, Ridge 4.02 (all 8: 4.09 / 3.97 / 4.18). This observation led to adding
+  the size-only configurations (Section 4).
