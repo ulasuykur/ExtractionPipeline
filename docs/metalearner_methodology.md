@@ -7,7 +7,9 @@ This file is the detailed record; the project docs only reference it
 > **Current status (last updated 2026-09-24)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
-> - Structure-based meta-features: **planned, not started** as of 2026-09-24 (separate git branch, Section 7).
+> - New, proposed meta-features: **in progress** on branch `feature/proposed-metafeatures` (since 2026-09-24;
+>   renamed from `feature/structure-metafeatures` the same day). Step 1, label-free pymfe candidates: not
+>   viable in the pool screening; confirmation run with the regressors pending. Next: T1 (classical k-estimators).
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -28,6 +30,9 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-24 | `master` | Decision: 8 static meta-features do not beat the baseline; continue with structure-based meta-features on a separate branch | Section 7 |
 | 2026-09-24 | `master` | Exploration scripts added: `experiments/phase2_exploration/` | Appendix A |
 | 2026-09-24 | `master` | File fingerprints made independent of line endings (`train_static.py`); D11 and M10 added to the project docs | Section 8 |
+| 2026-09-24 | `feature/proposed-metafeatures` | Branch created. Candidate meta-features: label-free pymfe features (eigenvalue spectrum, `t3`/`t4`, `wg_dist`, `cohesiveness`, `nr_norm`, `nr_cor_attr`, `sparsity`, itemsets); classical k-estimators parked as idea T1 (project doc *Ideas – To Be Tested*) | – |
+| 2026-09-24 | `feature/proposed-metafeatures` | Screening on artificial data (sandbox): the controlled test is too lenient (the Phase 2 feature `cor_mean` passes), the heterogeneous test too strict (even silhouette fails) → decision moved to the real pool; §7 corrected (KMNIST) | details follow with the pool screen |
+| 2026-09-24 | `feature/proposed-metafeatures` | Pool screening (`experiments/pymfe_screen/screen_pool.py`): none of the 6 candidates passes (all \|ρ beyond size\| ≤ 0.14). `train_static.py` extended (extra feature tables, feature sets, own output folder, fold-by-fold comparison with a reference run; default behaviour unchanged, verified). Branch renamed from `feature/structure-metafeatures` | details follow with the regressor run |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -403,7 +408,9 @@ only k changes): none of the six distribution features moves with k.
 | Fashion-MNIST_k5 | 5 | 2.27 | 6.47 | −1.72 | 2.15 | 0.204 | 0.039 |
 | Fashion-MNIST | 10 | 3.62 | 12.72 | −1.74 | 4.42 | 0.214 | 0.022 |
 
-(MNIST and KMNIST behave the same way.) This fails Brazdil et al.'s first requirement for
+(Corrected 2026-09-24: in KMNIST, `cor_mean` does decrease with k at fixed n, 0.140 → 0.121 → 0.094
+for k = 2, 3, 5; in MNIST the change is small. Across the pool such within-source changes are
+swamped by the differences between datasets: `cor_mean` has ρ = −0.02 with k.) This fails Brazdil et al.'s first requirement for
 meta-features: *"Discriminative power. The set of metafeatures should contain information
 that distinguishes between the base-algorithms in terms of their performance."* (p. 53,
 §4.1) [Q10]. A negative result of this kind has a precedent: for one of their targets,

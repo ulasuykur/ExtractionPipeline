@@ -21,8 +21,22 @@ Outputs:
   results/phase2/   the small files for the thesis (committed) - only after a FULL run
 
 Usage:
-    python train_static.py                # full run (10 repeats)
+    python train_static.py                # full run (10 repeats) - Phase 2, unchanged
     python train_static.py --repeats 1    # quick test run (results/ is not touched)
+
+Additional feature tables (branch feature/structure-metafeatures, 2026-09-24):
+    python train_static.py --name pymfe_screen \
+        --extra-features outputs/pymfe_screen/candidates.csv \
+        --feature-sets size2_pymfe --targets logk \
+        --reference results/phase2 --reference-feature-set size2
+  --name            output folders outputs/<name>/ and results/<name>/ (default: phase2)
+  --extra-features  CSV with a `name` column + extra meta-feature columns, joined by name
+  --feature-sets    which input sets to train (see FEATURE_SETS); default: static8 size2
+  --targets         k and/or logk; default: both
+  --reference       results folder of an earlier run on the SAME folds; each configuration is
+                    compared fold by fold with the reference configuration that has the same
+                    model and target and the feature set --reference-feature-set
+Without these options the script does exactly what it did in Phase 2.
 """
 
 import argparse
@@ -55,19 +69,34 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 import evaluation as ev
 
 ROOT = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "outputs" / "phase2"
-RESULTS_DIR = ROOT / "results" / "phase2"
+DEFAULT_RUN_NAME = (
+    "phase2"  # --name; output folders outputs/<name>/ and results/<name>/
+)
 
 RANDOM_STATE = 0  # same seed convention as extractor.py
 
 # ----------------------------------------------------------------------------------------
 # 1. Inputs, transforms and models
 # ----------------------------------------------------------------------------------------
-# Two input sets: all 8 static meta-features, and the size-only heuristic.
+# The 6 label-free pymfe candidates from experiments/pymfe_screen/screen_pool.py
+# (they failed the pool screening; trained here to confirm the exclusion with regressors).
+PYMFE_CANDIDATES = [
+    "A_eff_rank_ratio",
+    "A_top1_share",
+    "A_n90_ratio",
+    "B_t4",
+    "C_wg_dist_mean",
+    "D_nr_cor_attr",
+]
+
+# Input sets. Phase 2 uses static8 and size2 (the default); the others need --extra-features.
 FEATURE_SETS = {
     "static8": ev.FEATURES,
     "size2": ["log_n", "log_p"],
+    "size2_pymfe": ["log_n", "log_p"] + PYMFE_CANDIDATES,
 }
+DEFAULT_FEATURE_SETS = ["static8", "size2"]
+DEFAULT_TARGETS = ["k", "logk"]
 
 # Columns with a very uneven range and negative values (kurt_q3 up to 34,775; kurt_min,
 # skew_mean and kurt_q3 partly negative). They get the signed log: sign(x) * log(1 + |x|).
@@ -120,7 +149,11 @@ MODELS = {
     },
 }
 MODEL_LABELS = {"ridge": "Ridge", "knn": "k-NN", "rf": "Random Forest"}
-FEATURE_LABELS = {"static8": "8 meta-features", "size2": "log n + log p only"}
+FEATURE_LABELS = {
+    "static8": "8 meta-features",
+    "size2": "log n + log p only",
+    "size2_pymfe": "log n + log p + 6 pymfe candidates",
+}
 TARGET_LABELS = {"k": "raw k", "logk": "log k"}
 
 
@@ -138,8 +171,8 @@ def build_pipeline(model, features):
     return Pipeline(steps)
 
 
-def build_configs():
-    """All 13 configurations, baseline first."""
+def build_configs(feature_sets=DEFAULT_FEATURE_SETS, targets=DEFAULT_TARGETS):
+    """Baseline first, then every model x feature set x target (Phase 2 default: 13)."""
     configs = [
         {
             "name": "median_baseline",
@@ -148,9 +181,9 @@ def build_configs():
             "target": "k",
         }
     ]
-    for features in FEATURE_SETS:
+    for features in feature_sets:
         for model in MODELS:
-            for target in ["k", "logk"]:
+            for target in targets:
                 configs.append(
                     {
                         "name": f"{model}__{features}__{target}",
@@ -195,7 +228,12 @@ def make_estimator(config):
 # ----------------------------------------------------------------------------------------
 def run(df, folds, configs, max_repeats):
     """Train/test every configuration on every (repeat, fold). Returns three tables."""
-    X = df[ev.FEATURES]
+    used = [
+        c
+        for c in ev.FEATURES + PYMFE_CANDIDATES
+        if any(c in FEATURE_SETS[cf["features"]] for cf in configs)
+    ]
+    X = df[used]  # only model inputs; bookkeeping columns never reach the models
     y = df[ev.TARGET].to_numpy(dtype=float)
     groups = df[ev.GROUP].to_numpy()
 
@@ -321,7 +359,8 @@ def make_breakdown(preds, df):
 # meaning never depends on color alone.
 BLUE, ORANGE = "#2a78d6", "#eb6834"
 INK, INK_2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-FEATURE_COLORS = {"static8": BLUE, "size2": ORANGE}
+AQUA = "#1baf7a"  # 3rd slot of the validated palette (first 3 slots: colorblind-safe pairs)
+FEATURE_COLORS = {"static8": BLUE, "size2": ORANGE, "size2_pymfe": AQUA}
 
 
 def _style(ax):
@@ -332,7 +371,13 @@ def _style(ax):
     ax.set_axisbelow(True)
 
 
-def plot_scores(summary, path):
+def plot_scores(
+    summary,
+    path,
+    feature_sets=DEFAULT_FEATURE_SETS,
+    targets=DEFAULT_TARGETS,
+    reference=None,
+):
     """
     Figure 1: MAE (left) and share within +-1 (right) of every regressor, with the median
     baseline as a dashed reference line. Dots = mean over the 10 repeats, bars = sd.
@@ -353,7 +398,7 @@ def plot_scores(summary, path):
             base["within1_mean"],
         ),
     ]
-    variants = [(f, t) for f in FEATURE_SETS for t in ["k", "logk"]]
+    variants = [(f, t) for f in feature_sets for t in targets]
     offsets = np.linspace(-0.27, 0.27, len(variants))
     models = list(MODELS)
 
@@ -402,7 +447,8 @@ def plot_scores(summary, path):
                 color=c,
                 markeredgewidth=2,
                 markerfacecolor=c if target == "logk" else "white",
-                label=f"{FEATURE_LABELS[feat]}, {TARGET_LABELS[target]}",
+                label=f"{FEATURE_LABELS[feat]}, {TARGET_LABELS[target]}"
+                + (f" ({reference[1]})" if reference and feat == reference[0] else ""),
             )
         )
     fig.legend(
@@ -419,7 +465,7 @@ def plot_scores(summary, path):
     plt.close(fig)
 
 
-def plot_pred_vs_true(preds, df, summary, path):
+def plot_pred_vs_true(preds, df, summary, path, rows_spec=None):
     """
     Figure 2: predicted vs. true k for each dataset (its test predictions averaged over the
     repeats). Columns = the three models. Rows = 8 meta-features with raw k target,
@@ -427,13 +473,20 @@ def plot_pred_vs_true(preds, df, summary, path):
     Diagonal = perfect prediction; dashed line = the baseline's average prediction.
     Both axes are logarithmic, so small and large k are equally readable.
     """
-    rows_spec = [("static8", "k"), ("static8", "logk"), ("size2", "logk")]
+    if rows_spec is None:  # Phase 2 default
+        rows_spec = [("static8", "k"), ("static8", "logk"), ("size2", "logk")]
     src = df.set_index(ev.KEY)["source"].str.startswith("image")
     base_pred = preds.loc[preds["config"] == "median_baseline", "k_pred"].mean()
     ticks = [2, 3, 5, 10, 20, 50]
     rng = np.random.default_rng(RANDOM_STATE)  # small horizontal jitter, same every run
     fig, axes = plt.subplots(
-        3, 3, figsize=(11, 10.4), sharex=True, sharey=True, constrained_layout=True
+        len(rows_spec),
+        3,
+        figsize=(11, 3.5 * len(rows_spec)),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
+        squeeze=False,
     )
     for row, (feats, target) in enumerate(rows_spec):
         for col, model in enumerate(MODELS):
@@ -520,6 +573,53 @@ def sha256(path):
     return hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
+def add_extra_features(df, path):
+    """Join an extra meta-feature table (column `name` + feature columns) to the frozen
+    table. Every dataset must be present and complete; extra columns may not overwrite
+    existing ones."""
+    extra = pd.read_csv(path)
+    extra = extra[[c for c in extra.columns if c == ev.KEY or c in PYMFE_CANDIDATES]]
+    clash = set(extra.columns) & set(df.columns) - {ev.KEY}
+    if clash:
+        raise ValueError(f"{path}: columns already in the table: {sorted(clash)}")
+    merged = df.merge(extra, on=ev.KEY, how="left")
+    cols = [c for c in extra.columns if c != ev.KEY]
+    missing = merged[cols].isna().any(axis=1)
+    if missing.any():
+        raise ValueError(
+            f"{path}: {int(missing.sum())} datasets have missing values, e.g. "
+            f"{list(merged.loc[missing, ev.KEY])[:5]}"
+        )
+    return merged
+
+
+def compare_to_reference(summary, scores, reference_dir, reference_set):
+    """Corrected t-test of every configuration against the reference configuration with the
+    same model and target (feature set `reference_set`) from an earlier run on the SAME
+    folds. vs_reference_mean_diff < 0 means: better than the reference."""
+    ref = pd.read_csv(Path(reference_dir) / "fold_scores.csv").set_index(
+        ["config", "repeat", "fold"]
+    )
+    rows = []
+    for _, r in summary.iterrows():
+        if r["model"] == "median":
+            rows.append({})
+            continue
+        ref_name = f"{r['model']}__{reference_set}__{r['target']}"
+        s = scores[scores["config"] == r["config"]].set_index(["repeat", "fold"])
+        ref_mae = ref.loc[ref_name]["mae"].loc[s.index]  # KeyError if folds differ
+        test = ev.corrected_ttest(
+            s["mae"] - ref_mae, n_train=s["n_train"].mean(), n_test=s["n_test"].mean()
+        )
+        rows.append(
+            {
+                "reference_config": ref_name,
+                **{f"vs_reference_{k}": v for k, v in test.items()},
+            }
+        )
+    return pd.concat([summary, pd.DataFrame(rows, index=summary.index)], axis=1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Phase 2: static-only meta-learner.")
     parser.add_argument(
@@ -528,12 +628,39 @@ def main():
         default=ev.N_REPEATS,
         help="number of repeats to run (default: all 10; fewer = test run)",
     )
+    parser.add_argument("--name", default=DEFAULT_RUN_NAME, help="output folder name")
+    parser.add_argument("--extra-features", help="CSV with extra meta-feature columns")
+    parser.add_argument(
+        "--feature-sets",
+        nargs="+",
+        default=DEFAULT_FEATURE_SETS,
+        choices=list(FEATURE_SETS),
+    )
+    parser.add_argument(
+        "--targets", nargs="+", default=DEFAULT_TARGETS, choices=DEFAULT_TARGETS
+    )
+    parser.add_argument(
+        "--reference", help="results folder of an earlier run (same folds)"
+    )
+    parser.add_argument(
+        "--reference-feature-set", default="size2", choices=list(FEATURE_SETS)
+    )
     args = parser.parse_args()
     full_run = args.repeats >= ev.N_REPEATS
+    OUT_DIR = ROOT / "outputs" / args.name
+    RESULTS_DIR = ROOT / "results" / args.name
 
     df = ev.load_metafeatures()
+    if args.extra_features:
+        df = add_extra_features(df, args.extra_features)
+    needed = {c for fs in args.feature_sets for c in FEATURE_SETS[fs]}
+    if not needed <= set(df.columns):
+        raise SystemExit(
+            f"missing feature columns {sorted(needed - set(df.columns))} "
+            "- did you pass --extra-features?"
+        )
     folds = ev.load_folds(df)
-    configs = build_configs()
+    configs = build_configs(args.feature_sets, args.targets)
     print(
         f"{len(df)} datasets, {len(configs)} configurations, {args.repeats} repeat(s)"
     )
@@ -542,6 +669,10 @@ def main():
     preds, scores, params = run(df, folds, configs, args.repeats)
     runtime = time.time() - t0
     summary = make_summary(scores, configs)
+    if args.reference:
+        summary = compare_to_reference(
+            summary, scores, args.reference, args.reference_feature_set
+        )
     breakdown = make_breakdown(preds, df)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -550,8 +681,33 @@ def main():
     params.to_csv(OUT_DIR / "hyperparameters.csv", index=False)
     summary.to_csv(OUT_DIR / "summary.csv", index=False, float_format="%.4f")
     breakdown.to_csv(OUT_DIR / "breakdown.csv", index=False, float_format="%.4f")
-    plot_scores(summary, OUT_DIR / "fig_scores.png")
-    plot_pred_vs_true(preds, df, summary, OUT_DIR / "fig_pred_vs_true.png")
+    if args.reference:
+        # plot this run next to the reference configurations (same folds)
+        ref_summary = pd.read_csv(Path(args.reference) / "summary.csv")
+        ref_rows = ref_summary[
+            (ref_summary["features"] == args.reference_feature_set)
+            & ref_summary["target"].isin(args.targets)
+            & (ref_summary["model"] != "median")
+        ]
+        plot_scores(
+            pd.concat([summary, ref_rows], ignore_index=True),
+            OUT_DIR / "fig_scores.png",
+            [args.reference_feature_set] + args.feature_sets,
+            args.targets,
+            reference=(args.reference_feature_set, Path(args.reference).name),
+        )
+    elif args.feature_sets == DEFAULT_FEATURE_SETS and args.targets == DEFAULT_TARGETS:
+        plot_scores(summary, OUT_DIR / "fig_scores.png")
+    else:
+        plot_scores(
+            summary, OUT_DIR / "fig_scores.png", args.feature_sets, args.targets
+        )
+    rows_spec = (
+        None
+        if args.feature_sets == DEFAULT_FEATURE_SETS
+        else [(fs, t) for fs in args.feature_sets for t in args.targets][:3]
+    )
+    plot_pred_vs_true(preds, df, summary, OUT_DIR / "fig_pred_vs_true.png", rows_spec)
 
     # Everything needed to trace the numbers back to exact inputs and versions.
     info = {
@@ -561,6 +717,13 @@ def main():
         "runtime_s": round(runtime),
         "metafeatures_sha256": sha256(ev.METAFEATURES_CSV),
         "cv_folds_sha256": sha256(ev.FOLDS_CSV),
+        "feature_sets": args.feature_sets,
+        "targets": args.targets,
+        "extra_features": args.extra_features,
+        "extra_features_sha256": (
+            sha256(args.extra_features) if args.extra_features else None
+        ),
+        "reference": args.reference,
         "python": platform.python_version(),
         "numpy": np.__version__,
         "pandas": pd.__version__,
@@ -585,7 +748,7 @@ def main():
             shutil.copy(OUT_DIR / f, RESULTS_DIR / f)
         print(f"Copied results to {RESULTS_DIR}")
     else:
-        print("Test run: results/phase2 was NOT updated.")
+        print(f"Test run: results/{args.name} was NOT updated.")
 
     cols = [
         "config",
@@ -594,7 +757,7 @@ def main():
         "within1_mean",
         "vs_baseline_mean_diff",
         "vs_baseline_p",
-    ]
+    ] + (["vs_reference_mean_diff", "vs_reference_p"] if args.reference else [])
     print(
         f"\nFinished in {runtime / 60:.1f} min. Summary (mae_diff < 0 = better than baseline):"
     )
