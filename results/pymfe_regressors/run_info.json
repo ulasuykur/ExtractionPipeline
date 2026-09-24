@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-24 23:10",
+  "full_run": true,
+  "repeats": 10,
+  "runtime_s": 269,
+  "metafeatures_sha256": "d99f3eca18f2e6ba32cbb5223abe7c4eb33209a32146b078806ec2212e61eb88",
+  "cv_folds_sha256": "721afc6e17279ba9a2bd847d1e2c94c5f48515a49de62ccf13b059309f3c5b4f",
+  "feature_sets": [
+    "size2_pymfe"
+  ],
+  "targets": [
+    "logk"
+  ],
+  "extra_features": "outputs/pymfe_screen/candidates.csv",
+  "extra_features_sha256": "0f9aae02e56fe14b8307e3376e9e5248e4e793e5d2ab04bbdedd92bb4a1e1c89",
+  "reference": "results/phase2",
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1",
+  "scikit-learn": "1.9.0",
+  "matplotlib": "3.10.9"
+}
