@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-24 16:51",
+  "full_run": true,
+  "repeats": 10,
+  "runtime_s": 879,
+  "metafeatures_sha256": "ab77ee3dd49dc15670381fe6fbfe63d855ce70aac40f39a752218b60d25e02fb",
+  "cv_folds_sha256": "6bc096affbe4421e63eb61ace16f4697b1420e4addfa71a608bd027eb8b868b2",
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1",
+  "scikit-learn": "1.9.0",
+  "matplotlib": "3.10.9"
+}

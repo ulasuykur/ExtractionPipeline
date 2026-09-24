@@ -11,6 +11,9 @@ scikit-learn==1.9.0
 openml==0.15.1
 pymfe==0.4.4
 
+# --- Phase 2: meta-learner (figures) ---
+matplotlib==3.10.9
+
 # --- Dev tools ---
 black==26.5.1
 
