@@ -27,6 +27,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-24 | `master` | Phase 2 static-only run (13 configurations), results in `results/phase2/` | Section 5 |
 | 2026-09-24 | `master` | Decision: 8 static meta-features do not beat the baseline; continue with structure-based meta-features on a separate branch | Section 7 |
 | 2026-09-24 | `master` | Exploration scripts added: `experiments/phase2_exploration/` | Appendix A |
+| 2026-09-24 | `master` | File fingerprints made independent of line endings (`train_static.py`); D11 and M10 added to the project docs | Section 8 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -436,8 +437,9 @@ python train_static.py --repeats 1        # quick test run; does not touch resul
 | Python / numpy / pandas / scipy / scikit-learn / matplotlib | 3.11.15 / 2.4.6 / 3.0.5 / 1.17.1 / 1.9.0 / 3.10.9 |
 | seeds | splits: `random_state` = repeat (0–9); Random Forest: 0 |
 | `metafeatures.csv` SHA-256 | `ab77ee3d…25e02fb` |
-| `cv_folds.csv` SHA-256 | `6bc096af…868b2` (Windows line endings, as written on the PC); `721afc6e…3c5b4f` for the identical content with Linux line endings |
+| `cv_folds.csv` SHA-256 | `6bc096af…868b2` in the Phase 2 `run_info.json` (Windows line endings, as written on the PC); `721afc6e…3c5b4f` for the identical content with Linux line endings |
 | runtime (full run) | 879 s |
+| fingerprint note | Since 2026-09-24 (after the Phase 2 run) `train_static.py` computes fingerprints with line endings normalized, so later runs report `721afc6e…` for the folds on every system. The Phase 2 `run_info.json` still shows the older, Windows-specific value. |
 
 Output files (`results/phase2/`): `summary.csv` (one row per configuration incl. the
 t-test against the baseline), `fold_scores.csv` (50 × 13 rows), `hyperparameters.csv`

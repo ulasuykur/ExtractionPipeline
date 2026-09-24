@@ -515,7 +515,9 @@ def plot_pred_vs_true(preds, df, summary, path):
 # 5. Main
 # ----------------------------------------------------------------------------------------
 def sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    """Fingerprint of a file's content. Line endings are normalized (Windows CRLF -> LF),
+    so the same content gives the same fingerprint on Windows, Linux and the cluster."""
+    return hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def main():
