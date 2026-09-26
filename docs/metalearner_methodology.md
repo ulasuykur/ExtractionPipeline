@@ -4,12 +4,14 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-09-24)**
+> **Current status (last updated 2026-09-25)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - New, proposed meta-features: **in progress** on branch `feature/proposed-metafeatures` (since 2026-09-24;
->   renamed from `feature/structure-metafeatures` the same day). Step 1, label-free pymfe candidates: not
->   viable in the pool screening; confirmation run with the regressors pending. Next: T1 (classical k-estimators).
+>   renamed from `feature/structure-metafeatures` the same day). Step 1, label-free pymfe candidates:
+>   **excluded** (Section 10.1). Step 2, classical k-estimators (T1): **excluded** (Section 10.2).
+>   Static and classical routes closed (2026-09-25). Next: Phase 3, DEC/IDEC probes (new chat,
+>   new branch from `master` after merging this branch).
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -31,8 +33,10 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-24 | `master` | Exploration scripts added: `experiments/phase2_exploration/` | Appendix A |
 | 2026-09-24 | `master` | File fingerprints made independent of line endings (`train_static.py`); D11 and M10 added to the project docs | Section 8 |
 | 2026-09-24 | `feature/proposed-metafeatures` | Branch created. Candidate meta-features: label-free pymfe features (eigenvalue spectrum, `t3`/`t4`, `wg_dist`, `cohesiveness`, `nr_norm`, `nr_cor_attr`, `sparsity`, itemsets); classical k-estimators parked as idea T1 (project doc *Ideas – To Be Tested*) | – |
-| 2026-09-24 | `feature/proposed-metafeatures` | Screening on artificial data (sandbox): the controlled test is too lenient (the Phase 2 feature `cor_mean` passes), the heterogeneous test too strict (even silhouette fails) → decision moved to the real pool; §7 corrected (KMNIST) | details follow with the pool screen |
-| 2026-09-24 | `feature/proposed-metafeatures` | Pool screening (`experiments/pymfe_screen/screen_pool.py`): none of the 6 candidates passes (all \|ρ beyond size\| ≤ 0.14). `train_static.py` extended (extra feature tables, feature sets, own output folder, fold-by-fold comparison with a reference run; default behaviour unchanged, verified). Branch renamed from `feature/structure-metafeatures` | details follow with the regressor run |
+| 2026-09-24 | `feature/proposed-metafeatures` | Screening on artificial data (sandbox): the controlled test is too lenient (the Phase 2 feature `cor_mean` passes), the heterogeneous test too strict (even silhouette fails) → decision moved to the real pool; §7 corrected (KMNIST) | Section 10.1 |
+| 2026-09-24 | `feature/proposed-metafeatures` | Pool screening (`experiments/pymfe_screen/screen_pool.py`): none of the 6 candidates passes (all \|ρ beyond size\| ≤ 0.14). `train_static.py` extended (extra feature tables, feature sets, own output folder, fold-by-fold comparison with a reference run; default behaviour unchanged, verified). Branch renamed from `feature/structure-metafeatures` | Section 10.1 |
+| 2026-09-24 | `feature/proposed-metafeatures` | Regressor confirmation (`results/pymfe_regressors/`): size + pymfe candidates worse than size only for all three models (+0.03 to +0.24 MAE, p-values ≥ 0.10) → candidates excluded. Stage 1–2 scripts added (`experiments/pymfe_screen/`) | Section 10.1 |
+| 2026-09-25 | `feature/proposed-metafeatures` | T1 screening (`experiments/t1_classical/screen_t1.py`, results in `results/t1_classical/`): no classical estimator passes as meta-feature (all \|ρ beyond size\| ≤ 0.18); used directly, all are worse than the constant median (MAE 7.8–32.8 vs. 4.1) → T1 excluded; next Phase 3 | Section 10.2 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -45,6 +49,7 @@ This file is the detailed record; the project docs only reference it
 7. [Conclusion of Phase 2 and consequences](#7-conclusion-of-phase-2-and-consequences)
 8. [Reproducibility](#8-reproducibility)
 9. [References and quote verification](#9-references-and-quote-verification)
+10. [New, proposed meta-features](#10-new-proposed-meta-features-branch-featureproposed-metafeatures)
 - [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
 
 ---
@@ -495,6 +500,165 @@ References:
   195, 105682. https://doi.org/10.1016/j.knosys.2020.105682
 - Aljoud, M. (2026). Bachelor Thesis Proposal: Meta-Learning the Number of Clusters for Deep
   Clustering. LMU Munich (unpublished).
+
+---
+
+## 10. New, proposed meta-features (branch `feature/proposed-metafeatures`)
+
+The static features of Phase 2 do not beat the median baseline (Section 7). This section
+documents the search for meta-features that carry information about k. Every candidate set
+is evaluated with the unchanged protocol (Section 2); the candidates and the decision rules
+are fixed before each run, and all attempts are reported, including the failed ones.
+
+### 10.1 Step 1 – label-free pymfe meta-features (2026-09-24): not viable
+
+**Candidates.** The 38 meta-features of pymfe 0.4.4 that can be computed without labels
+(D3), minus those already used or excluded in Phase 1 (M5–M8). References as listed in the
+pymfe documentation (meta-feature description table); **not yet verified**:
+
+| family | pymfe features (reference in the pymfe table) | reason to expect a link to k |
+|---|---|---|
+| A eigenvalue spectrum | `eigenvalues` (Ali & Smith 2006), on standardized data | k separated groups spread along ≈ k − 1 directions |
+| B PCA dimension ratios | `t3`, `t4` (Lorena et al. 2019), on standardized data | same idea as A in one number |
+| C density | `wg_dist`, `cohesiveness` (Vilalta 1999; Vilalta & Drissi 2002) | clumpiness of the points |
+| D other | `nr_norm`, `nr_cor_attr`, `sparsity`, `one_itemset`, `two_itemset` | weak; included so their rejection is documented |
+
+Excluded upfront: scale-dependent statistics (M6), `t2` = p/n (redundant with log n, log p),
+`attr_ent` (M7), `nr_outliers` (M5), counts that are constant in the all-numeric pool.
+The pymfe *clustering* group (silhouette, Calinski–Harabasz, …) is not in this step: pymfe
+computes it on the true classes, which would leak k (D3). Its label-free use on k-means
+partitions is the next step (T1, project doc *Ideas – To Be Tested*).
+
+**Screening in three stages** (scripts in `experiments/pymfe_screen/`):
+
+1. *Controlled artificial series* (`stage1_controlled.py`): Gaussian groups with k = 2–50
+   (p ∈ {5, 20, 60}, two separations, n = 1,000) and class subsets of scikit-learn's digits
+   (k = 2, 3, 5, 10 at fixed n = 340). Criterion |ρ| ≥ 0.5 with the same sign in both.
+   Six candidates passed (e.g. effective dimension ρ = 0.96 / 0.82) – but so did the Phase 2
+   feature `cor_mean` (ρ = −0.96 / −0.78), which has ρ = −0.02 on the real pool.
+   → This stage is too lenient.
+2. *Heterogeneous artificial datasets* (`stage2_heterogeneous.py`): 300 datasets, each with
+   its own within-group correlations, noise columns, group sizes, separation, p and column
+   scales. All candidates failed (|ρ| ≤ 0.31); `cor_mean` reached −0.03, close to its real
+   value. Calibration (`stage2_calibration.py`): even "the k with the best silhouette" only
+   reached ρ = 0.18. → This stage is too strict; only the real pool can decide.
+3. *Real pool* (`screen_pool.py`): the six stage-1 survivors, computed on the 100 pool
+   datasets with the same loading as `extractor.py`. Criterion, fixed before the run:
+   |ρ beyond size| ≥ 0.30 on all datasets and ≥ 0.20 on the 83 tabular ones, same sign
+   ("beyond size" = partial Spearman correlation after removing log n and log p).
+
+| candidate | ρ beyond size (all 100) | ρ beyond size (tabular 83) | pass |
+|---|---|---|---|
+| A_eff_rank_ratio | −0.08 | −0.12 | no |
+| A_top1_share | −0.03 | −0.04 | no |
+| A_n90_ratio | −0.10 | −0.13 | no |
+| B_t4 | −0.04 | −0.05 | no |
+| C_wg_dist_mean | 0.14 | 0.13 | no |
+| D_nr_cor_attr | −0.02 | −0.03 | no |
+| *Phase 2 features (reference)* | *−0.14 … 0.05* | *−0.05 … 0.09* | – |
+
+Source: `results/pymfe_screen/screen_result.csv` (candidate values: `candidates.csv`).
+
+**Confirmation with the regressors.** A univariate screen cannot rule out that the features
+help in combination or non-linearly, so the full protocol was run with log n + log p + the six
+candidates (log k target; `train_static.py --name pymfe_regressors …`) and compared fold by
+fold with the Phase 2 size-only models (same folds; corrected t-test). Decision rule, fixed
+before the run: the candidates are excluded if no model is significantly better (p-value
+< 0.05) than its size-only counterpart.
+
+| model | MAE, size + pymfe | Δ vs. size only [95% interval] | p-value | Δ vs. median baseline (p-value) |
+|---|---|---|---|---|
+| Ridge | 4.049 ± 0.064 | +0.028 [−0.150, +0.205] | 0.76 | −0.063 (0.56) |
+| k-NN | 4.002 ± 0.064 | +0.235 [−0.046, +0.515] | 0.10 | −0.111 (0.43) |
+| Random Forest | 4.050 ± 0.064 | +0.206 [−0.096, +0.507] | 0.18 | −0.062 (0.66) |
+
+Adding the candidates makes every model worse than size alone, and none beats the median
+baseline. The median baseline of this run is identical, fold by fold, to Phase 2 (same splits).
+Source: `results/pymfe_regressors/`.
+
+![size + pymfe candidates vs. size only (Phase 2)](../results/pymfe_regressors/fig_scores.png)
+
+**Interpretation.** On artificial data the eigenvalue features rise strongly with k; on the
+real pool the sign even flips. How many dimensions carry the variance of a real dataset depends
+on the kind of data (e.g. correlated neighbouring pixels in images) far more than on its number
+of classes. Together with Phase 2: meta-features that describe single columns, pairs of columns
+or the dimensionality carry no usable information about the class count in this pool.
+
+**Disclosures.** (1) The candidates were screened on the same 100 datasets used for
+evaluation; this would only matter for a candidate that passed. (2) Screening-only
+subsampling: at most 20,000 rows for A, B, D and 1,000 rows for C (deviates from M9).
+(3) `t4` was computed with pymfe's `MFEComplexity.ft_t4` directly: identical value, but the
+complexity group would first build an all-pairs distance table (hours for e.g. dilbert).
+(4) Stages 1–2 ran in the Claude sandbox; stage 3 and the regressor run ran on the user's PC.
+
+**Decision (user, 2026-09-24):** the label-free pymfe meta-features are excluded. Next step:
+T1, classical k-estimators (pymfe clustering group on k-means partitions), with "best single
+classical estimator" as an additional baseline.
+
+### 10.2 Step 2 – classical k-estimators on a fixed k grid (T1, 2026-09-25): not viable
+
+**Idea.** Clustering methods that need k as input are run for every k of a fixed grid; a
+validity index rates each partition, and "the k the index rates best" is (a) a candidate
+meta-feature and (b) a classical estimator of k, i.e. a baseline. No labels are used.
+
+**Settings (fixed before the run; `experiments/t1_classical/screen_t1.py`).** Grid k ∈ {2, 3, 4,
+5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50} (from the pool filter 2–50, not from the true k);
+grid values with k > n/5 skipped; ≤ 5,000 rows per dataset, standardized columns. k-means
+(n_init = 3) rated by silhouette (on 2,000 rows), Calinski–Harabasz and Davies–Bouldin
+(pymfe `MFEClustering.ft_sil/ft_ch/ft_vdb`); Gaussian mixture with diagonal covariances
+rated by BIC. Same pass criterion as in 10.1.
+
+**Result as meta-features:** no candidate passes.
+
+| candidate | ρ beyond size (all 100) | ρ beyond size (tabular 83) |
+|---|---|---|
+| best k, silhouette | 0.18 | 0.17 |
+| best k, Calinski–Harabasz | 0.00 | 0.01 |
+| best k, Davies–Bouldin | 0.13 | 0.07 |
+| best k, mixture BIC | −0.01 | 0.05 |
+
+**Result as direct estimators** (all 100 datasets; no training involved):
+
+| estimator | MAE | within ±1 |
+|---|---|---|
+| constant median k = 4 | 4.10 | 36% |
+| silhouette | 8.04 | 35% |
+| Calinski–Harabasz | 7.81 | 33% |
+| Davies–Bouldin | 17.47 | 17% |
+| mixture BIC | 32.82 | 1% |
+
+Every classical estimator is worse than the constant median; the "best single classical
+estimator" baseline is therefore dominated by the median baseline.
+
+**Why.** Each method mostly returns its own preferred answer, not a property of the dataset:
+
+| estimator | picks k = 2 | picks its largest allowed k | median pick |
+|---|---|---|---|
+| silhouette | 59% | 5% | 2 |
+| Calinski–Harabasz | 68% | 6% | 2 |
+| Davies–Bouldin | 25% | 26% | 13 |
+| mixture BIC | 2% | 66% | 50 |
+
+(true k = 2 in 26% of the pool, median 4). For MNIST, Fashion-MNIST, KMNIST, USPS and
+CIFAR-10 (all k = 10), silhouette and Calinski–Harabasz choose 2. Exceptions: silhouette finds
+k = 3 for the three k = 3 image variants and 40 for binary_alpha_digits (k = 36).
+
+**Interpretation.** Even methods that search for groups directly cannot recover the class count
+in the raw feature space of this pool: the classes often do not form separate groups there
+(pixel space being the clearest case). Together with Phase 2 and 10.1, the static and classical
+routes are closed. This motivates the probes (Phase 3): DEC/IDEC search for groups in a learned
+representation, where classes can separate.
+
+**Disclosures.** (1) Grid spacing: true k between grid values (e.g. 36, 43, 46) can only be
+hit approximately. (2) Standardization was applied to all datasets, including images; no other
+preprocessing was tried after seeing the results. (3) Features describing the shape of the
+index curves (T1b) were deliberately not examined; the curves are saved
+(`results/t1_classical/curves.csv`) should this be revisited with pre-defined candidates.
+
+Source: `results/t1_classical/` (`screen_result.csv`, `estimators_direct.csv`, `candidates.csv`,
+`curves.csv`).
+
+**Decision (user, 2026-09-25):** T1 excluded; next step Phase 3 (DEC/IDEC probes).
 
 ---
 

@@ -1,0 +1,6 @@
+estimator,MAE,within1,n
+t1_best_k_sil,8.0400,0.3500,100
+t1_best_k_ch,7.8100,0.3300,100
+t1_best_k_db,17.4700,0.1700,100
+t1_best_k_bic,32.8200,0.0100,100
+"constant median k (4), for orientation",4.1000,0.3600,100
