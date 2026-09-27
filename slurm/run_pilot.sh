@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # run_pilot.sh - O2 pilot (methodology §11.3): one array task per pilot dataset (0-11),
-# at most 6 at the same time, all on RTX 2080 Ti (comparable timings, rule R1).
+# at most 6 at the same time, all on one GPU type (comparable timings, rule R1): RTX 2080
+# (deviation from §11.3, 2026-09-28, before any pilot run: no RTX 2080 Ti free).
 # Run slurm/download_pilot.sh first. Submit from the repo root on madeira:
 #   sbatch slurm/run_pilot.sh
 # A single dataset again (e.g. no. 3 after a failure; finished runs are skipped):
@@ -9,7 +10,7 @@
 #
 #SBATCH --job-name=pilot
 #SBATCH --partition=minor
-#SBATCH --gres=gpu:nvidia_geforce_rtx_2080_ti:1
+#SBATCH --gres=gpu:nvidia_geforce_rtx_2080:1
 #SBATCH --array=0-11%6
 #SBATCH --output=slurm-%x-%A_%a.out
 #SBATCH --ntasks=1

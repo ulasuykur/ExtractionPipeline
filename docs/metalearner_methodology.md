@@ -9,9 +9,10 @@ This file is the detailed record; the project docs only reference it
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
 > - Phase 3, DEC/IDEC probe runs: **in progress** on branch `feature/phase3-probes` (since 2026-09-27).
->   Environment set up on the local PC and the cluster (Section 11.1; cluster GPU check pending).
+>   Environment set up and checked on the local PC and the cluster (Section 11.1).
 >   O2 pilot **designed, not yet run**: settings, candidate meta-features and decision rules were fixed
->   before any probe run (Section 11.3). Next: probe code, smoke test, pilot on the cluster.
+>   before any probe run (Section 11.3). Probe code and pilot analysis committed (2026-09-27);
+>   pilot waiting for GPUs on the RTX 2080 (deviation, Section 11.3). Next: pilot results (Section 11.4).
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -39,6 +40,8 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-25 | `feature/proposed-metafeatures` | T1 screening (`experiments/t1_classical/screen_t1.py`, results in `results/t1_classical/`): no classical estimator passes as meta-feature (all \|ρ beyond size\| ≤ 0.18); used directly, all are worse than the constant median (MAE 7.8–32.8 vs. 4.1) → T1 excluded; next Phase 3 | Section 10.2 |
 | 2026-09-27 | `feature/phase3-probes` | Branch created from `master`. Phase 3 environment: torch 2.13.0+cu126 / torchvision 0.28.0+cu126 and clustpy 0.0.2 on the local PC and the cluster, one install command for both (`requirements-torch.txt`, `requirements.txt`, `env/constraints.txt`); local env snapshots moved to `env/`; `check_env.py`, `slurm/install_env.sh`, `slurm/check_env.sh`, `.gitattributes` added. Cluster node: glibc 2.39, gcc 13.2.0, Python 3.11.16 (GPU check pending) | Section 11.1 |
 | 2026-09-27 | `feature/phase3-probes` | O2 pilot designed before any probe run: own probe loop around clustpy's DEC/IDEC parts; 12 pilot datasets; preprocessing, network, training budget, seeds, k-grid and overcomplete protocols; measurements M1–M12; candidate meta-features G1–G4, L1, O1–O3; decision rules R1–R3 | Sections 11.2–11.3 |
+| 2026-09-27 | `feature/phase3-probes` | Probe code committed before any run: `probes.py` (self-test: pretraining, DEC and IDEC identical to clustpy's own fit functions), `run_probes.py` (resume, settings guard), `analyze_pilot.py` (candidates and R1–R3; tie rule smaller k, G3 missing if no k fully used, R1 time model a + b·p), `slurm/download_pilot.sh`, `slurm/run_pilot.sh`. GPU checks: RTX 2080 Ti and GTX 1080 Ti OK; `check_env.py` accepts code of the same GPU generation. §11.2 corrected (target-distribution note); G4 literature added (Q16–Q19) | Sections 9, 11.1–11.3 |
+| 2026-09-28 | `feature/phase3-probes` | Pilot GPU changed from RTX 2080 Ti to RTX 2080 before any pilot run (no RTX 2080 Ti available); `slurm/run_pilot.sh` and R1 timing check in `analyze_pilot.py` adjusted | Section 11.3 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -762,7 +765,7 @@ all attempts are reported.
 | k-grid | {2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50}, k > n/5 skipped | T1 grid (Section 10.2), fixed without looking at the true k |
 | fallback grid | {2, 3, 5, 8, 13, 20, 30, 50} | only if the full grid is too slow (R1); subset of the grid, so no extra run |
 | overcomplete | K = 50, capped at n/5 | pool maximum = largest grid value |
-| GPUs | RTX 2080 Ti only, at most 6 jobs at once | comparable timings; leaves GPUs for other users |
+| GPUs | one GPU type only (planned RTX 2080 Ti; RTX 2080 after the deviation below), at most 6 jobs at once | comparable timings; leaves GPUs for other users |
 
 **Measurements** (per dataset, seed, algorithm and k; M1–M9 at every checkpoint, M10–M11 at step 500, M12 afterwards):
 M1 clustering loss (training part); M2 clustering loss (held-out part); M3 reconstruction error; M4 mean
@@ -790,7 +793,7 @@ the regressors.
 
 **Decision rules:**
 
-- **R1 runtime.** Times measured on RTX 2080 Ti; time per run modelled as a + b·p on the 12 pilot datasets and
+- **R1 runtime.** Times measured on one GPU type (RTX 2080 Ti, changed to RTX 2080: see Deviation); time per run modelled as a + b·p on the 12 pilot datasets and
   predicted for every pool dataset; wall-clock = total GPU time / 6. A grid is acceptable if it adds at most
   3 hours of wall-clock time over overcomplete (O2 condition). Order: full grid → fallback grid → no grid.
 - **R2 signal.** (a) Deciding: on the MNIST family (k = 2, 3, 5, 10), a feature passes if |Spearman ρ| ≥ 0.8
@@ -804,6 +807,11 @@ the regressors.
   started until the result has been discussed. Fewer than 3 seeds only if no grid passes R1 and the seeds agree
   very closely (R2c). No settings are changed after seeing pilot results; a changed rerun would be reported as a
   second, post-hoc attempt next to the first.
+
+**Deviation (2026-09-28, before any pilot run).** No RTX 2080 Ti was available for new jobs
+(worker-minor-1 draining, worker-minor-6 occupied by a job with a 10-day limit). The pilot therefore runs on
+the RTX 2080 (worker-minor-5, same Turing generation, sm_75), and R1 uses timings from this single GPU type.
+The RTX 2080 is somewhat slower than the 2080 Ti, so the runtime extrapolation errs on the cautious side.
 
 **Disclosures.** The 12 pilot datasets are part of the evaluation pool (the pilot only chooses the protocol);
 MNIST is DEC's own benchmark and therefore a best case; embedding min(10, p) deviates from Xie et al. for p < 10;

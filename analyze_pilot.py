@@ -65,7 +65,9 @@ R1_MAX_EXTRA_HOURS = (
     3.0  # the grid may add at most 3 h of wall-clock time over overcomplete
 )
 R1_GPUS = 6  # wall-clock = total GPU time / 6 (at most 6 jobs at once)
-R1_GPU_NAME = "2080 Ti"  # timings must come from this GPU type
+# Timings must come from ONE GPU type. Planned: RTX 2080 Ti. Deviation 2026-09-28, before any pilot run
+# (no RTX 2080 Ti free): RTX 2080 (same Turing generation). Match "RTX 2080" but never "RTX 2080 Ti".
+R1_GPU_NAME = "RTX 2080"
 R2A_MIN_RHO = 0.8  # |Spearman rho| with k on the MNIST family
 R2C_MIN_RHO = 0.9  # "seeds agree very closely"
 MAX_ROWS, HELDOUT_SHARE, MIN_POINTS = (
@@ -231,7 +233,10 @@ def rule_r1(data: dict) -> tuple[pd.DataFrame, dict]:
             }
         )
     measured = pd.DataFrame(rows)
-    usable = measured[measured.gpu.fillna("").str.contains(R1_GPU_NAME)]
+    gpu_names = measured.gpu.fillna("")
+    usable = measured[
+        gpu_names.str.contains(R1_GPU_NAME) & ~gpu_names.str.contains("Ti")
+    ]
     if len(usable) < 2:
         return measured, {"error": f"fewer than 2 datasets timed on {R1_GPU_NAME}"}
     b_run, a_run = np.polyfit(usable.p_used, usable.run_s_mean, 1)
