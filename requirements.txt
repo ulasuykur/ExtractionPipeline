@@ -1,7 +1,15 @@
 # ExtractionPipeline - Python dependencies (conda env: ai-meta-k)
-# Python:   3.11.15  (use 3.11 on the Slurm cluster too)
-# Install:  pip install -r requirements.txt
-# Add new packages here when a phase needs them, then commit.
+# Python: 3.11 (local PC 3.11.15, Slurm cluster 3.11.16; patch difference only)
+#
+# Install - the SAME command on the local PC and on the cluster (repo root):
+#   pip install -r requirements-torch.txt -r requirements.txt -c env/constraints.txt
+#
+# - requirements-torch.txt : PyTorch build for CUDA 12.6 (the cluster driver supports CUDA <= 12.2;
+#                            12.x builds run on it). Never install torch from plain PyPI.
+# - requirements.txt       : the packages this project uses directly (this file).
+# - env/constraints.txt    : exact versions of ALL packages incl. indirect ones, so that the
+#                            local PC and the cluster end up with identical versions.
+# Add new packages here when a phase needs them, then update env/constraints.txt and commit.
 
 # --- Phase 1: meta-feature extraction ---
 numpy==2.4.6
@@ -14,9 +22,11 @@ pymfe==0.4.4
 # --- Phase 2: meta-learner (figures) ---
 matplotlib==3.10.9
 
+# --- Phase 3: deep clustering probes (DEC / IDEC) ---
+# torch + torchvision: see requirements-torch.txt
+# clustpy 0.0.2 is published as source code with a small C part, so pip compiles it
+# during installation: needs a C compiler (gcc on the cluster; already worked on Windows).
+clustpy==0.0.2
+
 # --- Dev tools ---
 black==26.5.1
-
-# --- Phase 3 (later): deep clustering probes ---
-# torch   -> install per CUDA version (differs local vs. Slurm cluster)
-# clustpy
