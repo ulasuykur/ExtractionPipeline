@@ -58,6 +58,20 @@ def check_versions():
     print(f"  {len(pins)} pins checked")
 
 
+def compatible_arch(arch_list, major, minor):
+    """Return the build's code version that runs on this GPU (the closest one), or None.
+    NVIDIA: code for compute capability X.y runs on any GPU X.z with z >= y
+    (same major revision, same or higher minor revision)."""
+    best, best_minor = None, -1
+    for arch in arch_list:
+        digits = "".join(ch for ch in arch.removeprefix("sm_") if ch.isdigit())
+        if arch.startswith("sm_") and len(digits) >= 2:
+            arch_major, arch_minor = int(digits[:-1]), int(digits[-1])
+            if arch_major == major and best_minor < arch_minor <= minor:
+                best, best_minor = arch, arch_minor
+    return best
+
+
 def check_torch():
     """Returns the torch device to use for the clustpy test (GPU if available, else CPU)."""
     import torch
@@ -72,11 +86,16 @@ def check_torch():
     device = torch.device("cuda")
     name = torch.cuda.get_device_name(0)
     major, minor = torch.cuda.get_device_capability(0)
-    arch_list = torch.cuda.get_arch_list()  # GPU generations this torch build contains code for
+    arch_list = (
+        torch.cuda.get_arch_list()
+    )  # GPU generations this torch build contains code for
     print(f"  GPU: {name}, compute capability sm_{major}{minor}")
-    print(f"  torch build supports: {arch_list}")
-    if f"sm_{major}{minor}" not in arch_list:
-        problems.append(f"this torch build has no code for sm_{major}{minor} ({name})")
+    usable = compatible_arch(arch_list, major, minor)
+    print(f"  torch build supports: {arch_list} -> code used on this GPU: {usable}")
+    if usable is None:
+        problems.append(
+            f"this torch build has no code that runs on sm_{major}{minor} ({name})"
+        )
 
     # Small calculation on the GPU; result must match the CPU up to float32 rounding.
     a = torch.randn(1000, 1000, generator=torch.Generator().manual_seed(0))
@@ -106,14 +125,23 @@ def check_clustpy(device):
     # Artificial data: 3 well-separated groups of 200 points in 20 columns.
     rng = np.random.default_rng(0)
     centers = rng.normal(0, 10, size=(3, 20))
-    X = np.vstack([c + rng.normal(0, 1, size=(200, 20)) for c in centers]).astype(np.float32)
+    X = np.vstack([c + rng.normal(0, 1, size=(200, 20)) for c in centers]).astype(
+        np.float32
+    )
     for algorithm in (DEC, IDEC):
         start = time.perf_counter()
-        model = algorithm(n_clusters=3, pretrain_epochs=5, clustering_epochs=5,
-                          device=device, random_state=0)
+        model = algorithm(
+            n_clusters=3,
+            pretrain_epochs=5,
+            clustering_epochs=5,
+            device=device,
+            random_state=0,
+        )
         model.fit(X)
         sizes = np.bincount(model.labels_, minlength=3).tolist()
-        print(f"  {algorithm.__name__}: {time.perf_counter() - start:.1f} s, cluster sizes {sizes}")
+        print(
+            f"  {algorithm.__name__}: {time.perf_counter() - start:.1f} s, cluster sizes {sizes}"
+        )
         if len(model.labels_) != len(X):
             problems.append(f"{algorithm.__name__} returned the wrong number of labels")
 
@@ -122,7 +150,9 @@ if __name__ == "__main__":
     run_check(check_system)
     run_check(check_versions)
     device = run_check(check_torch)  # None if the torch check crashed
-    run_check(check_clustpy, device)  # device=None lets clustpy choose the device itself
+    run_check(
+        check_clustpy, device
+    )  # device=None lets clustpy choose the device itself
     print("== Result:", "OK" if not problems else "PROBLEMS")
     for p in problems:
         print("  -", p)
