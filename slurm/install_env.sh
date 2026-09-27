@@ -23,8 +23,14 @@ export PIP_CACHE_DIR=/nfs/data8/$USER/pip-cache
 
 echo "== System facts"
 hostname
-ldd --version | head -1                              # glibc: torch wheels need >= 2.28
-gcc --version | head -1 || echo "gcc NOT FOUND"      # needed to compile clustpy
+# (sed -n 1p prints the first line but still reads all output, so the
+#  command is never cut off -- head -1 caused a "broken pipe" failure)
+ldd --version | sed -n 1p                            # glibc: torch wheels need >= 2.28
+if command -v gcc > /dev/null; then                  # C compiler, needed to compile clustpy
+    gcc --version | sed -n 1p
+else
+    echo "gcc NOT FOUND"
+fi
 python --version
 git log -1 --oneline --decorate || true              # which code version is installed
 
