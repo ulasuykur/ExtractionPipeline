@@ -482,10 +482,14 @@ the source text; the column says how.
 | Q9 | "The improvement can be attributed to the fact that 'noisy' attributes have been dropped." | Brazdil et al. 2022 / p. 67 / §4.7.1, para 4 | no, but it explains the previous sentence, which cites Todorovski et al. 2000 and Kalousis & Hilario 2001a (not checked) | verified in the project PDF |
 | Q10 | "Discriminative power. The set of metafeatures should contain information that distinguishes between the base-algorithms in terms of their performance." | Brazdil et al. 2022 / p. 53 / §4.1, "What are good dataset features?", 1st item | no | verified in the project PDF |
 | Q11 | "the average and majority baselines presented the best predictive performance for the MAPE, MRAE and RRMSE measures." | Pimentel & de Carvalho 2020 / p. 6 / §6.1.1 "Elbow technique", para 2 (bottom of left column, continues in right column) | no | verified in the project PDF (page image) |
-| Q12 | "Determining hyperparameters by cross-validation on a validation set is not an option in unsupervised clustering. Thus we use commonly used parameters for DNNs and avoid dataset specific tuning as much as possible." | Xie et al. 2016 / p. ? / §4.3, para 1 | no | tool-read; to confirm in the PDF |
-| Q13 | "Specifically, inspired by van der Maaten (2009), we set network dimensions to d–500–500–2000–10 for all datasets, where d is the data-space dimension, which varies between datasets." | Xie et al. 2016 / p. ? / §4.3, para 1 | refers to van der Maaten 2009 (not checked) | tool-read; to confirm in the PDF |
-| Q14 | "(2) generalizability (G) which is defined as the ratio between training and validation loss: G = Ltrain/Lvalidation." | Xie et al. 2016 / p. ? / §5.5, para 1 | no | tool-read; to confirm in the PDF |
-| Q15 | "Fig. 6 shows a sharp drop in generalizability when cluster number increases from 9 to 10, which suggests that 9 is the optimal number of clusters." | Xie et al. 2016 / p. ? / §5.5, para 1 | no | tool-read; to confirm in the PDF |
+| Q12 | "Determining hyperparameters by cross-validation on a validation set is not an option in unsupervised clustering. Thus we use commonly used parameters for DNNs and avoid dataset specific tuning as much as possible." | Xie et al. 2016 / p. ? (to add) / §4.3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q13 | "Specifically, inspired by van der Maaten (2009), we set network dimensions to d–500–500–2000–10 for all datasets, where d is the data-space dimension, which varies between datasets." | Xie et al. 2016 / p. ? (to add) / §4.3, para 1 | refers to van der Maaten 2009 (not checked) | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q14 | "(2) generalizability (G) which is defined as the ratio between training and validation loss: G = Ltrain/Lvalidation." | Xie et al. 2016 / p. ? (to add) / §5.5, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q15 | "Fig. 6 shows a sharp drop in generalizability when cluster number increases from 9 to 10, which suggests that 9 is the optimal number of clusters." | Xie et al. 2016 / p. ? (to add) / §5.5, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q16 | "The method can be used with any clustering algorithm; it provides a means of rationally defining an optimum number of clusters, and can also detect the lack of structure in data." | Ben-Hur et al. 2002 / p. 6 / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q17 | "Thus it is reasonable to postulate that a partition into k clusters has captured the 'inherent' structure in a dataset if partitions into k clusters obtained from running the clustering algorithm with different subsamples are similar …" | Ben-Hur et al. 2002 / p. 7 / §3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q18 | "These examples indicate a simple way for identifying k; choose the value where there is a transition from a score distribution that is concentrated near 1 to a wider distribution." | Ben-Hur et al. 2002 / p. 10 / §4, last para | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q19 | "In particular we conclude that stability is not a well-suited tool to determine the number of clusters – it is determined by the symmetries of the data which may be unrelated to clustering parameters." | Ben-David et al. 2006 / first page / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
 
 **NOT VERIFIED** (as of 2026-09-24): cited without a quote; content and details still to be checked in the papers:
 - Nadeau, C., Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*
@@ -515,6 +519,11 @@ References:
   https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html
 - Leiber, C. et al. Benchmarking deep clustering algorithms with ClustPy, code repository
   https://github.com/collinleiber/BenchmarkingDeepClustering (`benchmark.py`; code, not paper text)
+- Ben-Hur, A., Elisseeff, A., Guyon, I. (2002). A stability based method for discovering structure in
+  clustered data. *Pacific Symposium on Biocomputing* 7, 6–17. https://doi.org/10.1142/9789812799623_0002
+  (open PDF: https://psb.stanford.edu/psb-online/proceedings/psb02/benhur.pdf)
+- Ben-David, S., von Luxburg, U., Pál, D. (2006). A sober look at clustering stability. *COLT 2006*, LNAI 4005.
+  https://doi.org/10.1007/11776420_4
 
 ---
 
@@ -720,8 +729,8 @@ all attempts are reported.
   `IDEC.fit` (smoke test before any cluster run).
 - One autoencoder pretraining per (dataset, seed) is shared by all k, DEC and IDEC and both protocols (clustpy
   skips pretraining for an already fitted network and trains a copy).
-- Difference inherited from clustpy: clustpy recomputes DEC's target distribution from each batch at every
-  step; Xie et al. (2016) describe a less frequent update (to be confirmed in the paper before it is cited).
+- Xie et al. (2016) define the target distribution (§3.1.2, Eq. 3) but do not state how often it is
+  recomputed; clustpy recomputes it from each batch at every step (corrected 2026-09-27 after checking §3.1.2–3.1.3).
 
 ### 11.3 Pilot for O2 – design (fixed 2026-09-27, before any probe run)
 
@@ -769,7 +778,7 @@ the embedding (2,000 points); M11 runtime; M12 adjusted Rand index between the f
 | G1 | grid | G-ratio drop | G = M1/M2 at step 500; k* = grid value just before the largest drop in G | Xie et al. 2016, §5.5 |
 | G2 | grid | best silhouette in the embedding | k with the highest M10 | T1 idea moved to the learned space |
 | G3 | grid | largest fully used k | largest k with M8 = k | too large k should leave clusters (nearly) empty |
-| G4 | grid | most stable k | k with the highest M12 | stability idea; literature not yet checked; may favour small k |
+| G4 | grid | most stable k | k with the highest M12 | stability across subsamples as a way to choose k (Ben-Hur et al. 2002, Q16–Q18); here across seeds on the same rows instead. Caveat: stability can reflect symmetries of the data rather than the number of clusters (Ben-David et al. 2006, Q19) |
 | L1 | grid | fastest-sharpening k | k with the largest (M1 at step 0 − M1 at step 500) / M1 at step 0 | own hypothesis, no source |
 | O1 | overcomplete | clusters used | M8 at step 500 | – |
 | O2 | overcomplete | effective number of clusters | exp(entropy of the cluster sizes) at step 500 | – |
