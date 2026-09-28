@@ -9,10 +9,10 @@ This file is the detailed record; the project docs only reference it
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
 > - Phase 3, DEC/IDEC probe runs: **in progress** on branch `feature/phase3-probes` (since 2026-09-27).
->   Environment set up and checked on the local PC and the cluster (Section 11.1).
->   O2 pilot **designed, not yet run**: settings, candidate meta-features and decision rules were fixed
->   before any probe run (Section 11.3). Probe code and pilot analysis committed (2026-09-27);
->   pilot waiting for GPUs on the RTX 2080 (deviation, Section 11.3). Next: pilot results (Section 11.4).
+>   Environment set up and checked on the local PC and the cluster (Section 11.1). O2 pilot **run and
+>   analysed** with the rules fixed beforehand (2026-09-28): full run = overcomplete k + full T1 grid
+>   (Section 11.4). Full run on all 100 datasets in progress (parallel downloads, then any free GPU).
+>   Next: probe feature table (`data/probe_features.csv`), then Phase 4.
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -42,6 +42,8 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-27 | `feature/phase3-probes` | O2 pilot designed before any probe run: own probe loop around clustpy's DEC/IDEC parts; 12 pilot datasets; preprocessing, network, training budget, seeds, k-grid and overcomplete protocols; measurements M1–M12; candidate meta-features G1–G4, L1, O1–O3; decision rules R1–R3 | Sections 11.2–11.3 |
 | 2026-09-27 | `feature/phase3-probes` | Probe code committed before any run: `probes.py` (self-test: pretraining, DEC and IDEC identical to clustpy's own fit functions), `run_probes.py` (resume, settings guard), `analyze_pilot.py` (candidates and R1–R3; tie rule smaller k, G3 missing if no k fully used, R1 time model a + b·p), `slurm/download_pilot.sh`, `slurm/run_pilot.sh`. GPU checks: RTX 2080 Ti and GTX 1080 Ti OK; `check_env.py` accepts code of the same GPU generation. §11.2 corrected (target-distribution note); G4 literature added (Q16–Q19) | Sections 9, 11.1–11.3 |
 | 2026-09-28 | `feature/phase3-probes` | Pilot GPU changed from RTX 2080 Ti to RTX 2080 before any pilot run (no RTX 2080 Ti available); `slurm/run_pilot.sh` and R1 timing check in `analyze_pilot.py` adjusted | Section 11.3 |
+| 2026-09-28 | `feature/phase3-probes` | Pilot run (12 datasets, 3 seeds, RTX 2080; GPU self-test identical to clustpy) and analysis with the committed `analyze_pilot.py`: R1 full grid passes (0.65 h extra on 6 GPUs), 9 of 16 features pass R2a → full run: overcomplete + full T1 grid, 3 seeds (O2 decided). Results in `results/phase3_pilot/` | Section 11.4 |
+| 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -817,9 +819,66 @@ The RTX 2080 is somewhat slower than the 2080 Ti, so the runtime extrapolation e
 MNIST is DEC's own benchmark and therefore a best case; embedding min(10, p) deviates from Xie et al. for p < 10;
 the fixed network (≈ 3 million weights) overfits the smallest datasets (e.g. Iris, 150 rows).
 
-### 11.4 Pilot results
+### 11.4 Pilot results (2026-09-28) and full run
 
-Pending.
+**Run.** 12 pilot datasets × 3 seeds, DEC and IDEC, T1 grid (k ≤ n/5) and overcomplete K, all on
+RTX 2080 (worker-minor-5, deviation in 11.3). Before the pilot, the GPU self-test gave results identical
+to clustpy's own fit functions (largest difference 0). Analysis: `analyze_pilot.py` exactly as committed
+before the run; all outputs in `results/phase3_pilot/`.
+
+**R1 – runtime.** Fitted on the 12 datasets: one probe run ≈ 1.6 s + 0.00085 s per column
+(measured means 1.4–4.1 s), one pretraining ≈ 5.4 s + 0.0032 s per column (4.7–14.7 s). Extrapolated to
+the 100 pool datasets on 6 GPUs: overcomplete 0.14 h, extra for the full grid 0.65 h, extra for the
+fallback grid 0.35 h → the full grid passes (limit 3 h). Not in the R1 model: data loading and start-up;
+a whole dataset took 141–425 s inside Python and 6–10 min as a Slurm job.
+
+**R2a – MNIST family (deciding).** Seed-averaged values for k = 2, 3, 5, 10:
+
+| feature | k=2 | k=3 | k=5 | k=10 | ρ | passes |
+|---|---|---|---|---|---|---|
+| G1 DEC | 2.00 | 3.33 | 2.00 | 2.33 | 0.21 | no |
+| G1 IDEC | 7.00 | 3.00 | 4.00 | 14.33 | 0.40 | no |
+| G2 DEC | 2.00 | 2.00 | 2.00 | 2.00 | – (constant) | no |
+| G2 IDEC | 2.00 | 6.00 | 3.67 | 10.00 | 0.80 | yes |
+| G3 DEC | 11.33 | 11.00 | 13.00 | 15.00 | 0.80 | yes |
+| G3 IDEC | 26.67 | 25.00 | 36.67 | 40.00 | 0.80 | yes |
+| G4 DEC | 2.00 | 13.00 | 6.00 | 2.00 | −0.11 | no |
+| G4 IDEC | 2.00 | 13.00 | 6.00 | 2.00 | −0.11 | no |
+| L1 DEC | 2.33 | 2.33 | 2.00 | 2.00 | −0.89 | yes (direction opposite to the hypothesis) |
+| L1 IDEC | 4.67 | 6.67 | 7.33 | 12.00 | 1.00 | yes |
+| O1 DEC | 20.00 | 22.00 | 25.00 | 32.67 | 1.00 | yes |
+| O1 IDEC | 40.67 | 39.67 | 42.67 | 45.67 | 0.80 | yes |
+| O2 DEC | 18.08 | 20.58 | 25.92 | 33.29 | 1.00 | yes |
+| O2 IDEC | 42.22 | 39.67 | 43.78 | 44.04 | 0.80 | yes |
+| O3 DEC | 18.33 | 18.67 | 18.33 | 13.67 | −0.63 | no |
+| O3 IDEC | −2.33 | 1.00 | 0.67 | 0.67 | 0.32 | no |
+
+9 of 16 features pass. As stated in advance, this is a lenient sanity check on a best-case source, not
+evidence that the meta-learner improves.
+
+**R2b – all 12 datasets (report only).** Spearman ρ with the true k: O1 IDEC 0.66, O2 IDEC 0.63,
+L1 IDEC 0.56, O2 DEC 0.52, G3 IDEC 0.51, O1 DEC 0.50; all others between −0.35 and 0.44. As direct
+estimates of k, the k* candidates reach MAE 3.75 (L1 IDEC) to 13.92 (G3 IDEC) on these 12 datasets
+(not comparable with the Phase 2 numbers: other datasets, no cross-validation).
+
+**R2c – seed agreement (report only).** Spearman ρ between seed pairs across the 12 datasets: high for
+O1/O2 (0.83–0.99), L1 IDEC (0.96–0.97) and G3 IDEC (0.86–0.96); low for G1 (0.07–0.48); undefined for
+some pairs of G2 DEC and L1 DEC (constant within a seed).
+
+**R3 – outcome.** Grid and overcomplete both have signal (R2a), the full grid passes R1 → **full run:
+overcomplete K + full T1 grid, 3 seeds, settings unchanged. O2 is decided.** No feature is added or
+removed; all 16 are computed in the full run and screened on all 100 datasets.
+
+**Observation (descriptive, not used for any decision).** In the overcomplete run, DEC leaves many of the
+K clusters empty (O1 DEC: 10–42 clusters in use; O3 DEC: 7–29 emptied during the probe), while IDEC keeps
+most of them in use (O1 IDEC: 14–49). So DEC does not simply spread the points over all clusters, which
+was the worry behind O2.
+
+**Full run (started 2026-09-29).** All 100 pool datasets with the same settings, pilot datasets rerun
+(one consistent run). GPU: any free GPU (timings are no longer needed; the GPU is recorded per dataset;
+different GPU types can give slightly different numbers for the same seed). Downloads: the sequential
+download reached only 33 of 91 OpenML datasets in 6 h (slow server, one aborted connection), so the
+datasets are downloaded in parallel (one CPU task per dataset id) before the GPU tasks start.
 
 ---
 
