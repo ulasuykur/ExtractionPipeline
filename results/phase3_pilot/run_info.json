@@ -1,0 +1,32 @@
+{
+  "input_sha256": {
+    "CIFAR_10/final.csv": "bbe2eb8ae9302053aa33dff977959baf43c4bc788509919397a2e576641b33fd",
+    "Iris/final.csv": "a3c48d968edfe0d6979ebad86f449cabec43e89afbeed8ba89e70aed7955fbdb",
+    "banknote-authentication/final.csv": "7dbffa4b13576d7d119cfbc79011a0020e855cfaa441d69e97ebef0147980402",
+    "binary_alpha_digits/final.csv": "8e861184642d2006207a3ca7e5246f50a5c52320270f8c6fa413155521a26b0c",
+    "isolet/final.csv": "0aee7c9e803abeea688da163720f91b09b8d9885eb03dc319692d612821f8dfa",
+    "mnist_784/final.csv": "4744be2ecbd26d38c13a408c09d083ee2ea178ac620e579f00673dc2d27cdc79",
+    "mnist_784_k2/final.csv": "fc8b44de46628b31626443d4db3e11040d7aecc21cb5b818b4b205cceaa1c8db",
+    "mnist_784_k3/final.csv": "96d26084bd9042556178056946421a67fe848c1ac0ee41064326f28b473eaa18",
+    "mnist_784_k5/final.csv": "55adf6ed0582e5950daf848b4873c3ef2b91c4c7ef88e16f64b648a9f237270c",
+    "satimage/final.csv": "a4eda6dc8d0ecc5cdfdfa66c98b8e24b94bd49378b779e4b6f6e52466a8d0ca4",
+    "segment/final.csv": "080cf9699f1759cebd54e75e539633caf4bb034b56d3992f409a74b00784bf20",
+    "yeast/final.csv": "f70dd8ce3779ca786639adfa82e91c93180c6052f8da583918e84ae660f27f89",
+    "CIFAR_10/checkpoints.csv": "109a426e905d135b542ec2a3d352fb656cc759cc3c9302666ca1e77dd4e3e8d9",
+    "Iris/checkpoints.csv": "049b1aec9ff61025ffd343213dd87192b8d14eaec3f764d273c7ad593830be73",
+    "banknote-authentication/checkpoints.csv": "2be09c9b200ec5fe8310fcd91cf8ff35034653ecc4bb4e9c258d3333fe856860",
+    "binary_alpha_digits/checkpoints.csv": "02fab8a6eb4d5d216f4b4c32e5aa740a767565fc57f36feb3d2003344b28f13a",
+    "isolet/checkpoints.csv": "11574533a81e8661dad5789a4cc3095b164d507373434ec9c4c0873a6fdc6c2e",
+    "mnist_784/checkpoints.csv": "f304b5a773c6fbc75372bf2775b2159a189c7f1b9865f1f700fd4e9894e1071b",
+    "mnist_784_k2/checkpoints.csv": "28a4a8f6a9f1f5eb4d7dbc123c79224ad3772cd667160e7988b02d1df4c843c2",
+    "mnist_784_k3/checkpoints.csv": "27c094579dd119a9af53410c2650c55dc4eeb2a1e3e8944c82004de0885f03e8",
+    "mnist_784_k5/checkpoints.csv": "ec286ce3e24fae6e063cd8ae6e8e693f8917d386baa25a6e82cd396af0db288a",
+    "satimage/checkpoints.csv": "ac9094c19dff054bac9cda7d9f8848b7f8e0f9ffae7407a4e70df75302617d66",
+    "segment/checkpoints.csv": "64610cab205f11cfe06a169e947bd0ce68e6da64d437cdc18c428a4232511f83",
+    "yeast/checkpoints.csv": "84d968c786a93a036bc9b3e17f122b926cd6db80cc2737dc2531cfa68eaf4215"
+  },
+  "python": "3.11.16",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1"
+}
