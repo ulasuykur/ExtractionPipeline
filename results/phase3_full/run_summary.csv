@@ -1,0 +1,101 @@
+name,status,gpu,host,n_train,p_used,runs_done,job_total_s
+spambase,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4141,57,84,183.8
+mammography,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4500,6,84,376.9
+prnn_synth,complete,NVIDIA GeForce RTX 2080,worker-minor-5,225,2,84,152.7
+mw1,complete,NVIDIA GeForce RTX 2080,worker-minor-5,363,37,84,152.3
+KnuggetChase3,complete,NVIDIA GeForce RTX 2080,worker-minor-5,175,39,78,140.4
+PieChart1,complete,NVIDIA GeForce RTX 2080,worker-minor-5,635,37,84,155.9
+banknote-authentication,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,1235,4,84,181.7
+hill-valley,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1091,100,84,167.3
+Speech,complete,NVIDIA GeForce RTX 2080,worker-minor-5,3317,400,84,200.6
+madeline,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,2826,259,84,411.5
+sylvine,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,20,84,191.7
+FOREX_euraud-day-High,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1651,10,84,160.3
+ilpd-numeric,complete,NVIDIA GeForce RTX 2080,worker-minor-5,525,10,84,151.3
+cnae-9,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,216,263,84,182.5
+Click_prediction_small,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,9,84,167.3
+phoneme,complete,NVIDIA GeForce RTX 2080,worker-minor-5,2855,5,84,162.7
+eye_movements,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,20,84,169.9
+jannis,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4500,54,84,414.1
+Credit_Card_Fraud_Classification,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,30,84,169.0
+Phishing_Legitimate_full,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,47,84,170.7
+Bioresponse,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,3376,1776,84,300.2
+CanadaFiresD,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1342,46,84,160.9
+aztrees3,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,21,84,168.2
+seeds,complete,NVIDIA GeForce RTX 2080,worker-minor-5,189,7,78,143.6
+robot-failures-lp4,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,105,90,66,349.8
+cardiotocography,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1913,35,84,162.3
+Engine1,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,345,5,84,149.4
+thyroid-new,complete,NVIDIA GeForce RTX 2080,worker-minor-5,193,5,78,140.8
+jungle_chess_2pcs_raw_endgame_complete,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,6,84,165.3
+Iris,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,135,4,72,144.5
+Risk_Level_Classification,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,18,84,168.0
+Apple_Stock_Price_Trends_Classification,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,2264,22,84,372.3
+student_lifestyle_dataset,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1800,6,84,160.2
+maternal_health_risk,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,913,6,84,174.3
+waveform,complete,NVIDIA GeForce RTX 2080,worker-minor-5,720,21,84,159.5
+user-knowledge,complete,NVIDIA GeForce RTX 2080,worker-minor-5,363,5,84,150.9
+heart-switzerland,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,111,12,66,124.0
+wall-robot-navigation,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,4,84,165.7
+volcanoes-b1,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,3,84,170.4
+breast-tissue,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,95,9,60,115.8
+GesturePhaseSegmentationProcessed,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4500,32,84,374.7
+dilbert,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,2000,84,329.2
+microaggregation2,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,20,84,192.9
+CPMP-2015-runtime-classification,complete,NVIDIA GeForce RTX 2080,worker-minor-5,474,22,84,185.1
+MIP-2016-PAR10-classification,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,196,115,78,179.6
+mabbob_ela_as_5d_classify,complete,NVIDIA GeForce RTX 2080,worker-minor-5,1008,45,84,168.6
+total_score,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,647,10,84,406.8
+dataset_credit_risk_file_2,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,61,84,172.0
+football-player-position,complete,NVIDIA GeForce RTX 2080,worker-minor-5,3250,11,84,165.8
+hepatitis_c_virus_hcv_for_egyptian_patients,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,1247,28,84,175.0
+mental_health_detection,complete,NVIDIA GeForce RTX 2080,worker-minor-5,486,14,84,159.9
+air-quality-and-pollution-assessment,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,9,84,167.2
+internet_firewall,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,11,84,177.9
+satimage,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,36,84,170.7
+diggle_table_a2,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,279,8,84,397.7
+first-order-theorem-proving,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,51,84,173.7
+gas-drift-different-concentrations,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,129,84,137.5
+har,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,561,84,217.4
+shuttle,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,9,84,195.6
+steel-plates-fault,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,1747,27,84,297.2
+segment,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,2079,16,84,285.6
+fabert,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4500,794,84,392.1
+Indian_pines,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,220,84,173.6
+Touch2,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,239,9,84,195.7
+Otto-Group-Product-Classification-Challenge,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,93,84,157.6
+glass_clean,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,193,9,78,174.9
+Ecoli,complete,NVIDIA GeForce RTX 2080,worker-minor-5,302,7,84,154.7
+yeast,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,1336,8,84,198.1
+meta_stream_intervals.arff,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,74,84,173.5
+gina_prior2,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,3121,641,84,239.2
+artificial-characters,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,7,84,209.1
+leaf,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,306,15,84,312.8
+semeion,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,1434,256,84,408.6
+micro-mass,complete,NVIDIA GeForce RTX 2080,worker-minor-5,514,1073,84,178.8
+LED-display-domain-7digit,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,450,7,84,186.3
+texture,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,40,84,207.4
+volkert,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,147,84,197.1
+GTSRB-HueHist,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,256,84,200.9
+isolet,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,613,84,220.1
+timing-attack-dataset-10-micro-seconds-delay-2022-09-08,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,16,84,203.2
+Multiclass_Classification_for_Corporate_Credit_Ratings,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,7,84,208.0
+Corporate_Credit_Ratings,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,1826,45,84,253.1
+vowel,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,891,10,84,392.2
+mnist_784,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,664,84,256.3
+Fashion-MNIST,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,784,84,239.7
+Kuzushiji-MNIST,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,784,84,272.5
+USPS,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,256,84,226.6
+optdigits,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,62,84,171.8
+CIFAR_10,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,3072,84,629.0
+binary_alpha_digits,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,1264,320,84,250.0
+Devnagari-Script,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4500,784,84,238.7
+mnist_784_k2,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4500,579,84,389.5
+mnist_784_k3,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4498,611,84,263.9
+mnist_784_k5,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,640,84,263.9
+Fashion-MNIST_k2,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,784,84,275.6
+Fashion-MNIST_k3,complete,NVIDIA GeForce RTX 2080,worker-minor-5,4498,784,84,236.1
+Fashion-MNIST_k5,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,783,84,283.4
+Kuzushiji-MNIST_k2,complete,NVIDIA GeForce RTX 2080 Ti,worker-minor-1,4500,784,84,286.2
+Kuzushiji-MNIST_k3,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-4,4498,784,84,381.4
+Kuzushiji-MNIST_k5,complete,NVIDIA GeForce GTX 1080 Ti,worker-minor-3,4500,784,84,252.4
