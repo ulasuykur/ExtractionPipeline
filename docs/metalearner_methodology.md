@@ -4,15 +4,14 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-09-27)**
+> **Current status (last updated 2026-09-30)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
-> - Phase 3, DEC/IDEC probe runs: **in progress** on branch `feature/phase3-probes` (since 2026-09-27).
->   Environment set up and checked on the local PC and the cluster (Section 11.1). O2 pilot **run and
->   analysed** with the rules fixed beforehand (2026-09-28): full run = overcomplete k + full T1 grid
->   (Section 11.4). Full run on all 100 datasets in progress (parallel downloads, then any free GPU).
->   Next: probe feature table (`data/probe_features.csv`), then Phase 4.
+> - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
+>   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
+>   → `data/probe_features.csv` (16 probe features, no missing values).
+>   Next: Phase 4, static + probe features with the frozen protocol.
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -20,8 +19,8 @@ This file is the detailed record; the project docs only reference it
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner) |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -44,6 +43,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-28 | `feature/phase3-probes` | Pilot GPU changed from RTX 2080 Ti to RTX 2080 before any pilot run (no RTX 2080 Ti available); `slurm/run_pilot.sh` and R1 timing check in `analyze_pilot.py` adjusted | Section 11.3 |
 | 2026-09-28 | `feature/phase3-probes` | Pilot run (12 datasets, 3 seeds, RTX 2080; GPU self-test identical to clustpy) and analysis with the committed `analyze_pilot.py`: R1 full grid passes (0.65 h extra on 6 GPUs), 9 of 16 features pass R2a → full run: overcomplete + full T1 grid, 3 seeds (O2 decided). Results in `results/phase3_pilot/` | Section 11.4 |
 | 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
+| 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -708,7 +708,7 @@ all attempts are reported.
 | torch / torchvision | 2.13.0+cu126 / 0.28.0+cu126 | same |
 | clustpy | 0.0.2 | same (compiled with gcc 13.2.0) |
 | GPU | RTX 3060 Laptop (6 GB) | 6× RTX 2080 Ti, 2× RTX 2080, 3× GTX 1080 Ti |
-| check (`check_env.py`) | OK (torch sees the GPU) | pending |
+| check (`check_env.py`) | OK (torch sees the GPU) | OK on RTX 2080 Ti and GTX 1080 Ti (2026-09-27) |
 
 - One install command on both machines:
   `pip install -r requirements-torch.txt -r requirements.txt -c env/constraints.txt`.
@@ -879,6 +879,24 @@ was the worry behind O2.
 different GPU types can give slightly different numbers for the same seed). Downloads: the sequential
 download reached only 33 of 91 OpenML datasets in 6 h (slow server, one aborted connection), so the
 datasets are downloaded in parallel (one CPU task per dataset id) before the GPU tasks start.
+
+**Full run – result (2026-09-30).** All 100 datasets complete (3 seeds; DEC and IDEC; T1 grid k ≤ n/5 and
+overcomplete K), checked by `build_probe_features.py` (it refuses an incomplete run).
+
+- GPUs (recorded per dataset, `results/phase3_full/run_summary.csv`): RTX 2080 on 44 datasets (worker-minor-5),
+  RTX 2080 Ti on 31 (worker-minor-1), GTX 1080 Ti on 25 (worker-minor-4: 13, worker-minor-3: 12).
+- Runtime per dataset inside Python (loading, 3 pretrainings, up to 84 probe runs): median 3.1 min
+  (1.9–10.5 min), about 6 GPU hours in total.
+- Failures: 42 array tasks (pool rows 56, 58–86, 88–99) stopped immediately without any output on worker-minor-1
+  and worker-minor-3 (node problem, not the code); resubmitted unchanged, all completed. The first 58 datasets ran
+  on commit `c742e39`, the 42 reruns on `837f4b1`. The probe code (`probes.py`, `run_probes.py`, `extractor.py`,
+  `slurm/run_full.sh`) is identical in both (`git diff` empty); the later commit added the pilot results to this
+  file and `build_probe_features.py`.
+- Output: `data/probe_features.csv` = `name` + 16 features (G1–G4, L1, O1–O3 × DEC/IDEC), 100 rows, no missing
+  values (G3 could have been missing where no grid k keeps all clusters in use; this did not occur). The table
+  contains no true k. Per-seed candidates (with the true k, for analysis only): `results/phase3_full/per_seed.csv`.
+- The features have not been compared with the true k yet. Selection and evaluation follow in Phase 4 with the
+  frozen protocol (Section 2), as planned in 11.3.
 
 ---
 
