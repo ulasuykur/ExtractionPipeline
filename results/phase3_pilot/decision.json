@@ -1,0 +1,51 @@
+{
+  "R1": {
+    "timed_on": [
+      "mnist_784_k2",
+      "mnist_784_k3",
+      "mnist_784_k5",
+      "mnist_784",
+      "Iris",
+      "banknote-authentication",
+      "segment",
+      "satimage",
+      "yeast",
+      "isolet",
+      "binary_alpha_digits",
+      "CIFAR_10"
+    ],
+    "fit_run_s": {
+      "a": 1.622049170296539,
+      "b_per_column": 0.0008536799612681386
+    },
+    "fit_pretrain_s": {
+      "a": 5.421374502087852,
+      "b_per_column": 0.003209508041461711
+    },
+    "wallclock_hours_on_6_gpus": {
+      "overcomplete": 0.1370349469478712,
+      "grid_extra": 0.6532577302476257,
+      "fallback_extra": 0.3536633888717153
+    },
+    "full_grid_passes": true,
+    "fallback_grid_passes": true
+  },
+  "R3": {
+    "grid_has_signal": true,
+    "overcomplete_has_signal": true,
+    "features_passing_r2a": [
+      "G2_IDEC",
+      "G3_DEC",
+      "G3_IDEC",
+      "L1_DEC",
+      "L1_IDEC",
+      "O1_DEC",
+      "O1_IDEC",
+      "O2_DEC",
+      "O2_IDEC"
+    ],
+    "grid_choice_r1": "full grid",
+    "fewer_seeds_allowed": false,
+    "outcome": "full run: overcomplete + full grid"
+  }
+}

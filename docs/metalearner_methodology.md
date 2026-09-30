@@ -4,14 +4,14 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-09-25)**
+> **Current status (last updated 2026-09-30)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
-> - New, proposed meta-features: **in progress** on branch `feature/proposed-metafeatures` (since 2026-09-24;
->   renamed from `feature/structure-metafeatures` the same day). Step 1, label-free pymfe candidates:
->   **excluded** (Section 10.1). Step 2, classical k-estimators (T1): **excluded** (Section 10.2).
->   Static and classical routes closed (2026-09-25). Next: Phase 3, DEC/IDEC probes (new chat,
->   new branch from `master` after merging this branch).
+> - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
+> - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
+>   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
+>   → `data/probe_features.csv` (16 probe features, no missing values).
+>   Next: Phase 4, static + probe features with the frozen protocol.
 > - Learning curve (O1): **postponed**, design fixed (Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -19,8 +19,8 @@ This file is the detailed record; the project docs only reference it
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner) |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -37,6 +37,13 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-24 | `feature/proposed-metafeatures` | Pool screening (`experiments/pymfe_screen/screen_pool.py`): none of the 6 candidates passes (all \|ρ beyond size\| ≤ 0.14). `train_static.py` extended (extra feature tables, feature sets, own output folder, fold-by-fold comparison with a reference run; default behaviour unchanged, verified). Branch renamed from `feature/structure-metafeatures` | Section 10.1 |
 | 2026-09-24 | `feature/proposed-metafeatures` | Regressor confirmation (`results/pymfe_regressors/`): size + pymfe candidates worse than size only for all three models (+0.03 to +0.24 MAE, p-values ≥ 0.10) → candidates excluded. Stage 1–2 scripts added (`experiments/pymfe_screen/`) | Section 10.1 |
 | 2026-09-25 | `feature/proposed-metafeatures` | T1 screening (`experiments/t1_classical/screen_t1.py`, results in `results/t1_classical/`): no classical estimator passes as meta-feature (all \|ρ beyond size\| ≤ 0.18); used directly, all are worse than the constant median (MAE 7.8–32.8 vs. 4.1) → T1 excluded; next Phase 3 | Section 10.2 |
+| 2026-09-27 | `feature/phase3-probes` | Branch created from `master`. Phase 3 environment: torch 2.13.0+cu126 / torchvision 0.28.0+cu126 and clustpy 0.0.2 on the local PC and the cluster, one install command for both (`requirements-torch.txt`, `requirements.txt`, `env/constraints.txt`); local env snapshots moved to `env/`; `check_env.py`, `slurm/install_env.sh`, `slurm/check_env.sh`, `.gitattributes` added. Cluster node: glibc 2.39, gcc 13.2.0, Python 3.11.16 (GPU check pending) | Section 11.1 |
+| 2026-09-27 | `feature/phase3-probes` | O2 pilot designed before any probe run: own probe loop around clustpy's DEC/IDEC parts; 12 pilot datasets; preprocessing, network, training budget, seeds, k-grid and overcomplete protocols; measurements M1–M12; candidate meta-features G1–G4, L1, O1–O3; decision rules R1–R3 | Sections 11.2–11.3 |
+| 2026-09-27 | `feature/phase3-probes` | Probe code committed before any run: `probes.py` (self-test: pretraining, DEC and IDEC identical to clustpy's own fit functions), `run_probes.py` (resume, settings guard), `analyze_pilot.py` (candidates and R1–R3; tie rule smaller k, G3 missing if no k fully used, R1 time model a + b·p), `slurm/download_pilot.sh`, `slurm/run_pilot.sh`. GPU checks: RTX 2080 Ti and GTX 1080 Ti OK; `check_env.py` accepts code of the same GPU generation. §11.2 corrected (target-distribution note); G4 literature added (Q16–Q19) | Sections 9, 11.1–11.3 |
+| 2026-09-28 | `feature/phase3-probes` | Pilot GPU changed from RTX 2080 Ti to RTX 2080 before any pilot run (no RTX 2080 Ti available); `slurm/run_pilot.sh` and R1 timing check in `analyze_pilot.py` adjusted | Section 11.3 |
+| 2026-09-28 | `feature/phase3-probes` | Pilot run (12 datasets, 3 seeds, RTX 2080; GPU self-test identical to clustpy) and analysis with the committed `analyze_pilot.py`: R1 full grid passes (0.65 h extra on 6 GPUs), 9 of 16 features pass R2a → full run: overcomplete + full T1 grid, 3 seeds (O2 decided). Results in `results/phase3_pilot/` | Section 11.4 |
+| 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
+| 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -50,6 +57,7 @@ This file is the detailed record; the project docs only reference it
 8. [Reproducibility](#8-reproducibility)
 9. [References and quote verification](#9-references-and-quote-verification)
 10. [New, proposed meta-features](#10-new-proposed-meta-features-branch-featureproposed-metafeatures)
+11. [Phase 3 – DEC/IDEC probe runs](#11-phase-3--decidec-probe-runs-branch-featurephase3-probes)
 - [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
 
 ---
@@ -479,6 +487,14 @@ the source text; the column says how.
 | Q9 | "The improvement can be attributed to the fact that 'noisy' attributes have been dropped." | Brazdil et al. 2022 / p. 67 / §4.7.1, para 4 | no, but it explains the previous sentence, which cites Todorovski et al. 2000 and Kalousis & Hilario 2001a (not checked) | verified in the project PDF |
 | Q10 | "Discriminative power. The set of metafeatures should contain information that distinguishes between the base-algorithms in terms of their performance." | Brazdil et al. 2022 / p. 53 / §4.1, "What are good dataset features?", 1st item | no | verified in the project PDF |
 | Q11 | "the average and majority baselines presented the best predictive performance for the MAPE, MRAE and RRMSE measures." | Pimentel & de Carvalho 2020 / p. 6 / §6.1.1 "Elbow technique", para 2 (bottom of left column, continues in right column) | no | verified in the project PDF (page image) |
+| Q12 | "Determining hyperparameters by cross-validation on a validation set is not an option in unsupervised clustering. Thus we use commonly used parameters for DNNs and avoid dataset specific tuning as much as possible." | Xie et al. 2016 / p. ? (to add) / §4.3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q13 | "Specifically, inspired by van der Maaten (2009), we set network dimensions to d–500–500–2000–10 for all datasets, where d is the data-space dimension, which varies between datasets." | Xie et al. 2016 / p. ? (to add) / §4.3, para 1 | refers to van der Maaten 2009 (not checked) | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q14 | "(2) generalizability (G) which is defined as the ratio between training and validation loss: G = Ltrain/Lvalidation." | Xie et al. 2016 / p. ? (to add) / §5.5, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q15 | "Fig. 6 shows a sharp drop in generalizability when cluster number increases from 9 to 10, which suggests that 9 is the optimal number of clusters." | Xie et al. 2016 / p. ? (to add) / §5.5, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27; page to add |
+| Q16 | "The method can be used with any clustering algorithm; it provides a means of rationally defining an optimum number of clusters, and can also detect the lack of structure in data." | Ben-Hur et al. 2002 / p. 6 / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q17 | "Thus it is reasonable to postulate that a partition into k clusters has captured the 'inherent' structure in a dataset if partitions into k clusters obtained from running the clustering algorithm with different subsamples are similar …" | Ben-Hur et al. 2002 / p. 7 / §3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q18 | "These examples indicate a simple way for identifying k; choose the value where there is a transition from a score distribution that is concentrated near 1 to a wider distribution." | Ben-Hur et al. 2002 / p. 10 / §4, last para | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q19 | "In particular we conclude that stability is not a well-suited tool to determine the number of clusters – it is determined by the symmetries of the data which may be unrelated to clustering parameters." | Ben-David et al. 2006 / first page / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
 
 **NOT VERIFIED** (as of 2026-09-24): cited without a quote; content and details still to be checked in the papers:
 - Nadeau, C., Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*
@@ -500,6 +516,19 @@ References:
   195, 105682. https://doi.org/10.1016/j.knosys.2020.105682
 - Aljoud, M. (2026). Bachelor Thesis Proposal: Meta-Learning the Number of Clusters for Deep
   Clustering. LMU Munich (unpublished).
+- Xie, J., Girshick, R., Farhadi, A. (2016). Unsupervised deep embedding for clustering analysis. *ICML*, PMLR 48,
+  478–487. https://proceedings.mlr.press/v48/xieb16.html
+- van der Maaten, L. (2009). Learning a parametric embedding by preserving local structure. *AISTATS*, PMLR 5,
+  384–391. https://proceedings.mlr.press/v5/maaten09a.html (not checked)
+- NVIDIA. CUDA Compatibility – minor version compatibility.
+  https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html
+- Leiber, C. et al. Benchmarking deep clustering algorithms with ClustPy, code repository
+  https://github.com/collinleiber/BenchmarkingDeepClustering (`benchmark.py`; code, not paper text)
+- Ben-Hur, A., Elisseeff, A., Guyon, I. (2002). A stability based method for discovering structure in
+  clustered data. *Pacific Symposium on Biocomputing* 7, 6–17. https://doi.org/10.1142/9789812799623_0002
+  (open PDF: https://psb.stanford.edu/psb-online/proceedings/psb02/benhur.pdf)
+- Ben-David, S., von Luxburg, U., Pál, D. (2006). A sober look at clustering stability. *COLT 2006*, LNAI 4005.
+  https://doi.org/10.1007/11776420_4
 
 ---
 
@@ -659,6 +688,215 @@ Source: `results/t1_classical/` (`screen_result.csv`, `estimators_direct.csv`, `
 `curves.csv`).
 
 **Decision (user, 2026-09-25):** T1 excluded; next step Phase 3 (DEC/IDEC probes).
+
+---
+
+## 11. Phase 3 – DEC/IDEC probe runs (branch `feature/phase3-probes`)
+
+Working hypothesis (from Sections 7, 10.1 and 10.2): in this pool, the classes do not form separate groups in
+the raw feature space, but they may do so in the representation that DEC/IDEC learn (D5). Phase 3 runs short
+DEC/IDEC "probe" runs and turns their training signals into candidate meta-features; Phase 4 evaluates them with
+the frozen protocol (Section 2). As in Section 10, candidates and decision rules are fixed before each run, and
+all attempts are reported.
+
+### 11.1 Environment (2026-09-27)
+
+| | local PC | cluster (`minor`) |
+|---|---|---|
+| OS | Windows | Ubuntu (glibc 2.39) |
+| Python | 3.11.15 | 3.11.16 |
+| torch / torchvision | 2.13.0+cu126 / 0.28.0+cu126 | same |
+| clustpy | 0.0.2 | same (compiled with gcc 13.2.0) |
+| GPU | RTX 3060 Laptop (6 GB) | 6× RTX 2080 Ti, 2× RTX 2080, 3× GTX 1080 Ti |
+| check (`check_env.py`) | OK (torch sees the GPU) | OK on RTX 2080 Ti and GTX 1080 Ti (2026-09-27) |
+
+- One install command on both machines:
+  `pip install -r requirements-torch.txt -r requirements.txt -c env/constraints.txt`.
+  `env/constraints.txt` fixes the versions of all 62 packages (the local pip freeze, torch lines set to cu126,
+  installer tools left out).
+- Why the CUDA 12.6 build: the cluster driver supports CUDA ≤ 12.2, and programs built with CUDA 12.x run on
+  drivers ≥ 525 (NVIDIA, CUDA minor version compatibility). PyPI's default torch 2.13.0 is built for CUDA 13.0
+  (`2.13.0+cu130`, seen in a sandbox install) and would not run on the cluster.
+- clustpy 0.0.2 is kept (installed and tested; 0.0.3 was released on 2026-09-21 and changes internal interfaces
+  that the probe loop uses, Section 11.2). It is published as source code with a C part, so it is compiled on
+  installation, and it imports torchvision although it does not declare it; torchvision is therefore pinned too.
+- Problems met while setting up (for reproducibility): the first two install jobs stopped with exit code 13
+  ("broken pipe": `head -1` under `set -o pipefail`; fixed with `sed -n 1p`); PowerShell's `>` writes UTF-16
+  files (use `Set-Content -Encoding ascii`); a PyCharm editor tab overwrote an externally changed file (as in D10).
+
+### 11.2 Probe implementation
+
+- clustpy's `DEC.fit`/`IDEC.fit` return only the final state; the training loop keeps no loss history (clustpy
+  0.0.2 source, `_DEC_Module.fit`). Curves are needed for training-dynamics signals, so the probe uses its own
+  short loop around clustpy's **unchanged** parts: feedforward autoencoder, k-means start, `_DEC_Module` and its
+  loss. Only the step loop and the measurements are our own code.
+- Safeguard: with the same seed and settings, the loop must reproduce the result of clustpy's `DEC.fit` /
+  `IDEC.fit` (smoke test before any cluster run).
+- One autoencoder pretraining per (dataset, seed) is shared by all k, DEC and IDEC and both protocols (clustpy
+  skips pretraining for an already fitted network and trains a copy).
+- Xie et al. (2016) define the target distribution (§3.1.2, Eq. 3) but do not state how often it is
+  recomputed; clustpy recomputes it from each batch at every step (corrected 2026-09-27 after checking §3.1.2–3.1.3).
+
+### 11.3 Pilot for O2 – design (fixed 2026-09-27, before any probe run)
+
+**Datasets (12, hand-picked, reason per dataset):**
+
+| role | datasets (k) |
+|---|---|
+| controlled test (same source, only k changes) | mnist_784_k2 (2), mnist_784_k3 (3), mnist_784_k5 (5), mnist_784 (10) |
+| tiny / small tabular | Iris (3), banknote-authentication (2) |
+| medium k, tabular | segment (7), satimage (6), yeast (10) |
+| large k | isolet (26), binary_alpha_digits (36) |
+| runtime worst case (p = 3,072) | CIFAR_10 (10) |
+
+**Settings:**
+
+| setting | value | reason |
+|---|---|---|
+| constant columns | dropped | as in the extractor (D2) |
+| scaling | images (`source` = image / image_variant): one mean and sd over the whole array; tabular: per column | images: as in the ClustPy benchmark code (`benchmark.py`, `_standardize`; code, not paper text); per-column standardizing would blow up rarely non-zero pixels |
+| rows | at most 5,000, random, fixed seed, labels not used; the same rows for all seeds | the four MNIST datasets then all have 5,000 rows, so only k changes |
+| held-out part | 10% of these rows, fixed per dataset | for the G ratio (G1) |
+| network | input – 500 – 500 – 2000 – embedding (clustpy default, as in Xie et al. 2016) | one fixed network, no per-dataset tuning |
+| embedding size | min(10, p) | 10 as in Xie et al.; never larger than the input (clustpy warns in that case) |
+| batch size; learning rates | 256; Adam 1e-3 (pretraining), 1e-4 (probe) | clustpy defaults |
+| IDEC loss weights | clustering loss 0.1, reconstruction loss 1.0 (clustpy default) | not tuned |
+| pretraining | 2,000 steps per (dataset, seed) | = clustpy's default of 100 epochs at 5,000 rows |
+| probe | 500 steps per k and algorithm; measurements every 50 steps and at step 0 | ≈ 1/5 of clustpy's default clustering phase |
+| seeds | 0, 1, 2; features averaged over seeds | 3 = smallest number that shows seed noise |
+| k-grid | {2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50}, k > n/5 skipped | T1 grid (Section 10.2), fixed without looking at the true k |
+| fallback grid | {2, 3, 5, 8, 13, 20, 30, 50} | only if the full grid is too slow (R1); subset of the grid, so no extra run |
+| overcomplete | K = 50, capped at n/5 | pool maximum = largest grid value |
+| GPUs | one GPU type only (planned RTX 2080 Ti; RTX 2080 after the deviation below), at most 6 jobs at once | comparable timings; leaves GPUs for other users |
+
+**Measurements** (per dataset, seed, algorithm and k; M1–M9 at every checkpoint, M10–M11 at step 500, M12 afterwards):
+M1 clustering loss (training part); M2 clustering loss (held-out part); M3 reconstruction error; M4 mean
+confidence (mean of each point's largest soft assignment); M5 mean assignment entropy / log k; M6 entropy of the
+cluster sizes / log k; M7 share of the smallest cluster; M8 number of clusters with ≥ 1% of the points;
+M9 adjusted Rand index between the k-means start and the current clusters; M10 silhouette of the final clusters in
+the embedding (2,000 points); M11 runtime; M12 adjusted Rand index between the final clusterings of the three seeds.
+
+**Candidate meta-features (fixed list; each for DEC and IDEC, averaged over seeds):**
+
+| | protocol | candidate | rule | basis |
+|---|---|---|---|---|
+| G1 | grid | G-ratio drop | G = M1/M2 at step 500; k* = grid value just before the largest drop in G | Xie et al. 2016, §5.5 |
+| G2 | grid | best silhouette in the embedding | k with the highest M10 | T1 idea moved to the learned space |
+| G3 | grid | largest fully used k | largest k with M8 = k | too large k should leave clusters (nearly) empty |
+| G4 | grid | most stable k | k with the highest M12 | stability across subsamples as a way to choose k (Ben-Hur et al. 2002, Q16–Q18); here across seeds on the same rows instead. Caveat: stability can reflect symmetries of the data rather than the number of clusters (Ben-David et al. 2006, Q19) |
+| L1 | grid | fastest-sharpening k | k with the largest (M1 at step 0 − M1 at step 500) / M1 at step 0 | own hypothesis, no source |
+| O1 | overcomplete | clusters used | M8 at step 500 | – |
+| O2 | overcomplete | effective number of clusters | exp(entropy of the cluster sizes) at step 500 | – |
+| O3 | overcomplete | clusters emptied | M8 at step 0 − M8 at step 500 | – |
+
+The pilot does not add or remove candidates. Features defined after seeing data are marked post-hoc. The choice
+of meta-features is made on all 100 datasets with the screening rule of Sections 10.1–10.2, then confirmed with
+the regressors.
+
+**Decision rules:**
+
+- **R1 runtime.** Times measured on one GPU type (RTX 2080 Ti, changed to RTX 2080: see Deviation); time per run modelled as a + b·p on the 12 pilot datasets and
+  predicted for every pool dataset; wall-clock = total GPU time / 6. A grid is acceptable if it adds at most
+  3 hours of wall-clock time over overcomplete (O2 condition). Order: full grid → fallback grid → no grid.
+- **R2 signal.** (a) Deciding: on the MNIST family (k = 2, 3, 5, 10), a feature passes if |Spearman ρ| ≥ 0.8
+  with k (right order, at most one neighbouring pair swapped); a constant feature fails; a protocol has signal if
+  at least one of its features passes. This is a lenient sanity check on a best-case source, not evidence for
+  the meta-learner. (b) Reported only: ρ with the true k on all 12 datasets; error of the k* candidates as
+  direct estimates. (c) Seed agreement: ρ between each pair of seeds across the 12 datasets; "very close" = ρ ≥
+  0.9 for all pairs (only used for reducing the number of seeds, see R3).
+- **R3 outcome.** Overcomplete is part of every full run that goes ahead. A grid (full or fallback, per R1) is
+  added if at least one grid feature passes R2a. If no feature of either protocol passes R2a, the full run is not
+  started until the result has been discussed. Fewer than 3 seeds only if no grid passes R1 and the seeds agree
+  very closely (R2c). No settings are changed after seeing pilot results; a changed rerun would be reported as a
+  second, post-hoc attempt next to the first.
+
+**Deviation (2026-09-28, before any pilot run).** No RTX 2080 Ti was available for new jobs
+(worker-minor-1 draining, worker-minor-6 occupied by a job with a 10-day limit). The pilot therefore runs on
+the RTX 2080 (worker-minor-5, same Turing generation, sm_75), and R1 uses timings from this single GPU type.
+The RTX 2080 is somewhat slower than the 2080 Ti, so the runtime extrapolation errs on the cautious side.
+
+**Disclosures.** The 12 pilot datasets are part of the evaluation pool (the pilot only chooses the protocol);
+MNIST is DEC's own benchmark and therefore a best case; embedding min(10, p) deviates from Xie et al. for p < 10;
+the fixed network (≈ 3 million weights) overfits the smallest datasets (e.g. Iris, 150 rows).
+
+### 11.4 Pilot results (2026-09-28) and full run
+
+**Run.** 12 pilot datasets × 3 seeds, DEC and IDEC, T1 grid (k ≤ n/5) and overcomplete K, all on
+RTX 2080 (worker-minor-5, deviation in 11.3). Before the pilot, the GPU self-test gave results identical
+to clustpy's own fit functions (largest difference 0). Analysis: `analyze_pilot.py` exactly as committed
+before the run; all outputs in `results/phase3_pilot/`.
+
+**R1 – runtime.** Fitted on the 12 datasets: one probe run ≈ 1.6 s + 0.00085 s per column
+(measured means 1.4–4.1 s), one pretraining ≈ 5.4 s + 0.0032 s per column (4.7–14.7 s). Extrapolated to
+the 100 pool datasets on 6 GPUs: overcomplete 0.14 h, extra for the full grid 0.65 h, extra for the
+fallback grid 0.35 h → the full grid passes (limit 3 h). Not in the R1 model: data loading and start-up;
+a whole dataset took 141–425 s inside Python and 6–10 min as a Slurm job.
+
+**R2a – MNIST family (deciding).** Seed-averaged values for k = 2, 3, 5, 10:
+
+| feature | k=2 | k=3 | k=5 | k=10 | ρ | passes |
+|---|---|---|---|---|---|---|
+| G1 DEC | 2.00 | 3.33 | 2.00 | 2.33 | 0.21 | no |
+| G1 IDEC | 7.00 | 3.00 | 4.00 | 14.33 | 0.40 | no |
+| G2 DEC | 2.00 | 2.00 | 2.00 | 2.00 | – (constant) | no |
+| G2 IDEC | 2.00 | 6.00 | 3.67 | 10.00 | 0.80 | yes |
+| G3 DEC | 11.33 | 11.00 | 13.00 | 15.00 | 0.80 | yes |
+| G3 IDEC | 26.67 | 25.00 | 36.67 | 40.00 | 0.80 | yes |
+| G4 DEC | 2.00 | 13.00 | 6.00 | 2.00 | −0.11 | no |
+| G4 IDEC | 2.00 | 13.00 | 6.00 | 2.00 | −0.11 | no |
+| L1 DEC | 2.33 | 2.33 | 2.00 | 2.00 | −0.89 | yes (direction opposite to the hypothesis) |
+| L1 IDEC | 4.67 | 6.67 | 7.33 | 12.00 | 1.00 | yes |
+| O1 DEC | 20.00 | 22.00 | 25.00 | 32.67 | 1.00 | yes |
+| O1 IDEC | 40.67 | 39.67 | 42.67 | 45.67 | 0.80 | yes |
+| O2 DEC | 18.08 | 20.58 | 25.92 | 33.29 | 1.00 | yes |
+| O2 IDEC | 42.22 | 39.67 | 43.78 | 44.04 | 0.80 | yes |
+| O3 DEC | 18.33 | 18.67 | 18.33 | 13.67 | −0.63 | no |
+| O3 IDEC | −2.33 | 1.00 | 0.67 | 0.67 | 0.32 | no |
+
+9 of 16 features pass. As stated in advance, this is a lenient sanity check on a best-case source, not
+evidence that the meta-learner improves.
+
+**R2b – all 12 datasets (report only).** Spearman ρ with the true k: O1 IDEC 0.66, O2 IDEC 0.63,
+L1 IDEC 0.56, O2 DEC 0.52, G3 IDEC 0.51, O1 DEC 0.50; all others between −0.35 and 0.44. As direct
+estimates of k, the k* candidates reach MAE 3.75 (L1 IDEC) to 13.92 (G3 IDEC) on these 12 datasets
+(not comparable with the Phase 2 numbers: other datasets, no cross-validation).
+
+**R2c – seed agreement (report only).** Spearman ρ between seed pairs across the 12 datasets: high for
+O1/O2 (0.83–0.99), L1 IDEC (0.96–0.97) and G3 IDEC (0.86–0.96); low for G1 (0.07–0.48); undefined for
+some pairs of G2 DEC and L1 DEC (constant within a seed).
+
+**R3 – outcome.** Grid and overcomplete both have signal (R2a), the full grid passes R1 → **full run:
+overcomplete K + full T1 grid, 3 seeds, settings unchanged. O2 is decided.** No feature is added or
+removed; all 16 are computed in the full run and screened on all 100 datasets.
+
+**Observation (descriptive, not used for any decision).** In the overcomplete run, DEC leaves many of the
+K clusters empty (O1 DEC: 10–42 clusters in use; O3 DEC: 7–29 emptied during the probe), while IDEC keeps
+most of them in use (O1 IDEC: 14–49). So DEC does not simply spread the points over all clusters, which
+was the worry behind O2.
+
+**Full run (started 2026-09-29).** All 100 pool datasets with the same settings, pilot datasets rerun
+(one consistent run). GPU: any free GPU (timings are no longer needed; the GPU is recorded per dataset;
+different GPU types can give slightly different numbers for the same seed). Downloads: the sequential
+download reached only 33 of 91 OpenML datasets in 6 h (slow server, one aborted connection), so the
+datasets are downloaded in parallel (one CPU task per dataset id) before the GPU tasks start.
+
+**Full run – result (2026-09-30).** All 100 datasets complete (3 seeds; DEC and IDEC; T1 grid k ≤ n/5 and
+overcomplete K), checked by `build_probe_features.py` (it refuses an incomplete run).
+
+- GPUs (recorded per dataset, `results/phase3_full/run_summary.csv`): RTX 2080 on 44 datasets (worker-minor-5),
+  RTX 2080 Ti on 31 (worker-minor-1), GTX 1080 Ti on 25 (worker-minor-4: 13, worker-minor-3: 12).
+- Runtime per dataset inside Python (loading, 3 pretrainings, up to 84 probe runs): median 3.1 min
+  (1.9–10.5 min), about 6 GPU hours in total.
+- Failures: 42 array tasks (pool rows 56, 58–86, 88–99) stopped immediately without any output on worker-minor-1
+  and worker-minor-3 (node problem, not the code); resubmitted unchanged, all completed. The first 58 datasets ran
+  on commit `c742e39`, the 42 reruns on `837f4b1`. The probe code (`probes.py`, `run_probes.py`, `extractor.py`,
+  `slurm/run_full.sh`) is identical in both (`git diff` empty); the later commit added the pilot results to this
+  file and `build_probe_features.py`.
+- Output: `data/probe_features.csv` = `name` + 16 features (G1–G4, L1, O1–O3 × DEC/IDEC), 100 rows, no missing
+  values (G3 could have been missing where no grid k keeps all clusters in use; this did not occur). The table
+  contains no true k. Per-seed candidates (with the true k, for analysis only): `results/phase3_full/per_seed.csv`.
+- The features have not been compared with the true k yet. Selection and evaluation follow in Phase 4 with the
+  frozen protocol (Section 2), as planned in 11.3.
 
 ---
 

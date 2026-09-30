@@ -1,0 +1,14 @@
+# PyTorch for this project - the identical build on the local PC and on the Slurm cluster.
+#
+# Why a separate file:
+# - The default torch 2.13 from PyPI may target a newer CUDA than the cluster driver
+#   supports (CUDA <= 12.2).
+# - The CUDA 12.6 build ("+cu126") runs on NVIDIA drivers >= 525 (NVIDIA "minor version
+#   compatibility") and also supports the local RTX 3060.
+# - This build only exists on the PyTorch download server, so pip is told to look there
+#   as well (--extra-index-url). All other packages still come from PyPI.
+#
+# Use together with requirements.txt (see the install command there).
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.13.0+cu126
+torchvision==0.28.0+cu126
