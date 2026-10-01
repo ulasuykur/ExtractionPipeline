@@ -50,6 +50,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | Branch created from `master`. Phase 4 design fixed before any result: screening of the 6 static + 16 probe candidates inside each training part with the §10.1 rule (deviation from §11.3: not on all 100 datasets); six feature sets × Ridge/k-NN/RF, log k only; RF primary; Holm-corrected decision rules for Q1 (2 tests) and Q2 (4 tests); baselines incl. direct probe and T1 estimators; learning curve for the main meta-learner; quotes Q20–Q21 (Ambroise & McLachlan 2002) added | Section 12 |
 | 2026-10-01 | `feature/phase4-evaluation` | `train_phase4.py` added (design of §12). Smoke test in the Claude sandbox with random fake probe features, 1 repeat: sets A/B and the median baseline reproduce the Phase 2 fold scores (max difference 9e-16); the copied screening rule reproduces §10.1 (max 5e-5, rounding). Guard added before any result: a constant candidate fails the screening | Section 12.2 |
 | 2026-10-01 | `feature/phase4-evaluation` | Main Phase 4 run on the user's PC (29.7 min; Phase 2 check passed, max difference 8.9e-16). Probe candidates passed the in-fold screening in 3 of 50 training parts; H1a/H1b not significant (no probe effect); RF D (MAE 3.87) not significantly better than the median (4.11) or the size-only k-NN (3.77), significantly better than the best direct probe (5.30) and classical (9.09) estimators, which are both worse than the median. Results in `results/phase4/` | Section 12.10 |
+| 2026-10-01 | `feature/phase4-evaluation` | `learning_curve.py` (§12.8) and `t3_measures.py` (§12.7) added; details fixed before any of their results (bullets in §12.7–12.8; RRMSE and a tabular/image split added to T3). Smoke tests in the Claude sandbox with random fake probe features passed: the learning curve's 100% point reproduces the (fake) main run (max difference 9e-16); T3 reproduces the main-run MAE | Sections 12.7–12.8 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1019,6 +1020,14 @@ candidate passes in a fold, C is identical to B in that fold.
 - Additional error measures T3 (project doc *Ideas – To Be Tested*), from the saved predictions.
 - Descriptive screening on all 100 datasets (rule of Section 10.1) for each of the 22 candidates, for
   interpretation only.
+- T3 details (`t3_measures.py`, fixed 2026-10-01 before any T3 result): RMSE, mean absolute log error, MAPE, MRAE,
+  RRMSE, median absolute error, exact hits (rounded prediction) and Spearman ρ per test part. MAPE, MRAE and RRMSE as
+  defined by Pimentel & de Carvalho (2020, §5.5, Eqs. 7–9, p. 5); MRAE and RRMSE are relative to the mean k of the
+  training part. RRMSE was added to the T3 list because Q11 names MAPE, MRAE and RRMSE. Constant baselines that are
+  best for a measure, computed on the training part: mean k, 1/k-weighted median (MAPE), most frequent k (exact
+  hits). All measures are also split by source (tabular / image; user request), pooled over the test predictions of
+  each repeat because a test part holds only 0–5 image datasets. Built-in check: the recomputed MAE equals
+  `results/phase4/summary.csv`. Reported only.
 
 ### 12.8 Learning curve (O1)
 
@@ -1026,6 +1035,14 @@ Run for RF D only, after the main run, with the design of Section 6 unchanged (t
 training part subsampled by group, stratified by k-bin, to 25/50/75/100%, 5 draws; plateau rule and additional
 condition). Screening (12.2) and tuning are redone on every subsampled training part. If time runs short, this
 step is dropped first and reported as not done.
+
+- Implementation (`learning_curve.py`, fixed 2026-10-01 before any learning-curve result): the quarters come from
+  `StratifiedGroupKFold(4)` on the training part with the protocol's 6 k-bins (as in
+  `experiments/phase2_exploration/e6_lc_noise.py`, which used the 5 pool brackets); seed 1000·repeat + 10·fold +
+  draw; the 100% point is computed once per fold and must reproduce the main run (max difference ≤ 1e-9, otherwise
+  `results/phase4_lc/` is not written); the median baseline is refitted on every subsample for comparison; the
+  75 → 100% step test is the corrected t-test (Section 2.7) with the size of the full training part. Outputs:
+  `results/phase4_lc/`.
 
 ### 12.9 Implementation
 
