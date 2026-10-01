@@ -4,15 +4,17 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-09-30)**
+> **Current status (last updated 2026-10-01)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
 > - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
->   Next: Phase 4, static + probe features with the frozen protocol.
-> - Learning curve (O1): **postponed**, design fixed (Section 6).
+> - Phase 4, static + probe meta-learner: **design fixed before any result** (2026-10-01, branch
+>   `feature/phase4-evaluation`, Section 12). Feature screening moved inside the training parts (deviation from
+>   Section 11.3). Next: implementation (`train_phase4.py`).
+> - Learning curve (O1): to be run in Phase 4 for the main meta-learner (Section 12.8; design in Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
 > Every development step adds a dated row there and updates this box.
@@ -44,6 +46,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-28 | `feature/phase3-probes` | Pilot run (12 datasets, 3 seeds, RTX 2080; GPU self-test identical to clustpy) and analysis with the committed `analyze_pilot.py`: R1 full grid passes (0.65 h extra on 6 GPUs), 9 of 16 features pass R2a → full run: overcomplete + full T1 grid, 3 seeds (O2 decided). Results in `results/phase3_pilot/` | Section 11.4 |
 | 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
 | 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
+| 2026-10-01 | `feature/phase4-evaluation` | Branch created from `master`. Phase 4 design fixed before any result: screening of the 6 static + 16 probe candidates inside each training part with the §10.1 rule (deviation from §11.3: not on all 100 datasets); six feature sets × Ridge/k-NN/RF, log k only; RF primary; Holm-corrected decision rules for Q1 (2 tests) and Q2 (4 tests); baselines incl. direct probe and T1 estimators; learning curve for the main meta-learner; quotes Q20–Q21 (Ambroise & McLachlan 2002) added | Section 12 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -58,6 +61,7 @@ This file is the detailed record; the project docs only reference it
 9. [References and quote verification](#9-references-and-quote-verification)
 10. [New, proposed meta-features](#10-new-proposed-meta-features-branch-featureproposed-metafeatures)
 11. [Phase 3 – DEC/IDEC probe runs](#11-phase-3--decidec-probe-runs-branch-featurephase3-probes)
+12. [Phase 4 – static + probe meta-learner](#12-phase-4--static--probe-meta-learner-branch-featurephase4-evaluation)
 - [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
 
 ---
@@ -495,12 +499,16 @@ the source text; the column says how.
 | Q17 | "Thus it is reasonable to postulate that a partition into k clusters has captured the 'inherent' structure in a dataset if partitions into k clusters obtained from running the clustering algorithm with different subsamples are similar …" | Ben-Hur et al. 2002 / p. 7 / §3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27 |
 | Q18 | "These examples indicate a simple way for identifying k; choose the value where there is a transition from a score distribution that is concentrated near 1 to a wider distribution." | Ben-Hur et al. 2002 / p. 10 / §4, last para | no | wording confirmed by the user in the PDF, 2026-09-27 |
 | Q19 | "In particular we conclude that stability is not a well-suited tool to determine the number of clusters – it is determined by the symmetries of the data which may be unrelated to clustering parameters." | Ben-David et al. 2006 / first page / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q20 | "Thus the test set must play no role in the feature-selection process for an unbiased estimate to be obtained." | Ambroise & McLachlan 2002 / p. 6566 / Discussion, left column | no | wording identical in two copies (PMC full text, PDF); confirmed by the user in the PDF, 2026-10-01 |
+| Q21 | "In the present context where feature selection is used in training the prediction rule R from the full training set, the same feature-selection method must be implemented in training the rule on the M − 1 subsets combined at each stage of an (external) cross-validation of R for the selected subset of genes." | Ambroise & McLachlan 2002 / p. 6563 / "Cross-Validation", left column | no | same as Q20 |
 
 **NOT VERIFIED** (as of 2026-09-24): cited without a quote; content and details still to be checked in the papers:
 - Nadeau, C., Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*
   52, 239–281. https://doi.org/10.1023/A:1024068626366
 - Bouckaert, R. R., Frank, E. (2004). Evaluating the replicability of significance tests
   for comparing learning algorithms. *PAKDD 2004*, LNCS 3056, 3–12 (link to be added after checking).
+- Holm, S. (1979). A simple sequentially rejective multiple test procedure. *Scandinavian Journal of
+  Statistics* 6(2), 65–70. https://www.jstor.org/stable/4615733 (added 2026-10-01)
 
 References:
 - Brazdil, P., van Rijn, J. N., Soares, C., Vanschoren, J. (2022). *Metalearning:
@@ -529,6 +537,9 @@ References:
   (open PDF: https://psb.stanford.edu/psb-online/proceedings/psb02/benhur.pdf)
 - Ben-David, S., von Luxburg, U., Pál, D. (2006). A sober look at clustering stability. *COLT 2006*, LNAI 4005.
   https://doi.org/10.1007/11776420_4
+- Ambroise, C., McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray
+  gene-expression data. *PNAS* 99(10), 6562–6566. https://doi.org/10.1073/pnas.102102699
+  (free full text: https://pmc.ncbi.nlm.nih.gov/articles/PMC124442)
 
 ---
 
@@ -791,7 +802,8 @@ the embedding (2,000 points); M11 runtime; M12 adjusted Rand index between the f
 
 The pilot does not add or remove candidates. Features defined after seeing data are marked post-hoc. The choice
 of meta-features is made on all 100 datasets with the screening rule of Sections 10.1–10.2, then confirmed with
-the regressors.
+the regressors. (Changed 2026-10-01, before any Phase 4 result: the screening runs inside each training part,
+Section 12.2.)
 
 **Decision rules:**
 
@@ -897,6 +909,125 @@ overcomplete K), checked by `build_probe_features.py` (it refuses an incomplete 
   contains no true k. Per-seed candidates (with the true k, for analysis only): `results/phase3_full/per_seed.csv`.
 - The features have not been compared with the true k yet. Selection and evaluation follow in Phase 4 with the
   frozen protocol (Section 2), as planned in 11.3.
+
+---
+
+## 12. Phase 4 – static + probe meta-learner (branch `feature/phase4-evaluation`)
+
+Questions (project doc *Development Phase 4*): (1) Do the probe features of Phase 3 improve the meta-learner
+compared with the static-only reference? (2) How does the meta-learner compare with simple baselines that estimate
+k? As in Sections 10–11, everything below was fixed before any Phase 4 result (2026-10-01), and all
+configurations are reported.
+
+### 12.1 Inputs
+
+- `data/metafeatures.csv` (8 static features, target, bookkeeping), joined by `name` with
+  `data/probe_features.csv` (16 probe features, 100/100 datasets, no missing values). P7 is not triggered: every
+  evaluation uses all 100 datasets.
+- Splits: `data/cv_folds.csv`; protocol of Section 2 unchanged (`evaluation.py` unchanged).
+- Direct estimators: the probe features G1–G4, L1, O1, O2 (DEC and IDEC) and the T1 raw-space estimators from
+  `results/t1_classical/candidates.csv` (best k by silhouette, Calinski–Harabasz, Davies–Bouldin, mixture BIC;
+  100 rows, no true k).
+
+### 12.2 Feature screening inside the training parts (deviation from Section 11.3)
+
+Section 11.3 and D12 planned to select the probe features on all 100 datasets. Changed before any Phase 4 result:
+in Section 10 the full-pool screening was harmless because no candidate passed; here the true k of the test
+datasets would help choose the features, and the test scores would be too optimistic (Q20–Q21; same reason as
+nested tuning, Section 2.5, Q6–Q7). The screening is therefore part of training:
+
+- In each of the 50 outer training parts (≈ 80 datasets), every candidate is screened with the rule of
+  Section 10.1, unchanged: partial Spearman ρ with k after removing log n and log p (`partial_spearman`, as in
+  `experiments/pymfe_screen/screen_pool.py`); a candidate passes if |ρ| ≥ 0.30 on all training datasets and
+  ≥ 0.20 on the tabular training datasets, with the same sign. Only the training datasets' true k and the
+  label-free `source` column are used.
+- Candidates: the 6 static distribution features (`skew_mean`, `skew_sd`, `kurt_min`, `kurt_q3`, `cor_mean`,
+  `conc_mean`) and/or the 16 probe features, depending on the feature set (12.3). `log_n` and `log_p` are always
+  included (the rule measures information *beyond* size).
+- If no candidate passes, the model uses `log_n` + `log_p` only.
+- The screening runs once per outer training part, before tuning; the inner tuning CV (Section 2.5) then uses the
+  selected columns. It is not repeated inside the inner folds; this affects only the hyperparameter choice, never
+  the test part.
+- The selected features are saved per fold.
+- Spearman uses ranks, so the result is the same for k and log k and is not affected by the transforms in 12.4.
+
+### 12.3 Configurations
+
+| set | inputs | role |
+|---|---|---|
+| A | static 8 | Phase 2 reference (rerun) |
+| B | `log_n` + `log_p` | Phase 2 size-only model (added after the exploration, Section 4) |
+| C | `log_n` + `log_p` + screened static 6 | static-only with the screening rule |
+| D | `log_n` + `log_p` + screened (static 6 + probe 16) | **main meta-learner** |
+| E | static 8 + probe 16, no screening | robustness: does the result depend on the screening? |
+| F | probe 16, no screening | do the probe features carry signal on their own? |
+
+Models: Ridge, k-NN, Random Forest with the grids of Section 2.5. Target: log k only (all raw-k configurations of
+Phase 2 were worse than the baseline, Section 5.2, finding 1). 18 configurations + median baseline.
+Built-in check: sets A and B must reproduce the Phase 2 fold scores (`results/phase2/fold_scores.csv`); if any
+fold MAE differs by more than 1e-9, the run is marked invalid and `results/phase4/` is not written. If no static
+candidate passes in a fold, C is identical to B in that fold.
+
+### 12.4 Transforms
+
+- Static features: as Section 3.1 (signed log for skewness and kurtosis columns).
+- Probe features: log for G1–G4, L1, O1, O2 (values on the k scale, ≥ 1 by construction); signed log for O3
+  (can be negative). Parameter-free, so no leakage; Random Forest and the screening (ranks) are unaffected.
+- Scaling: as Section 3.2.
+
+### 12.5 Baselines
+
+1. **Median baseline** (Section 2.6). It also covers "fixed k" from the proposal (Q8): the median is the best
+   constant prediction for MAE.
+2. **Size-only k-NN:** set B, k-NN, log k (the proposal's "heuristics based on dataset size/dimension", Q8).
+3. **Direct probe estimators:** G1–G4, L1, O1, O2 for DEC and IDEC (14), used directly as the estimate of k
+   (clipped at 2, same metrics, no training). O3 is excluded (number of emptied clusters, not an estimate of k).
+   *Best direct probe estimator:* in each training part, the one of the 14 with the lowest MAE on the training
+   datasets (tie: first in the order above) is applied to the test part.
+4. **Classical raw-space estimators** (T1, Section 10.2; the proposal's "classical internal metrics"): the 4
+   estimators, scored the same way; *best classical estimator* chosen as in 3.
+
+### 12.6 Decision rules
+
+- **Primary model: Random Forest.** Of the three models it copes best with many and irrelevant inputs, needs no
+  scaling, and is unaffected by monotone transforms; with all 8 static features it was the best of the three in
+  Phase 2 (Section 5.1). Ridge and k-NN are reported as secondary.
+- **Question 1** (corrected t-test, Section 2.7; Holm correction over 2 tests, α = 0.05):
+  - H1a: RF D vs. RF C – the probe effect (same procedure; the only difference is whether the probe candidates are
+    offered). "The probe features improve the meta-learner" is claimed only if H1a is significant after Holm,
+    with ΔMAE < 0.
+  - H1b: RF D vs. RF A – the Phase 4 meta-learner against the frozen Phase 2 reference.
+  - Reading: H1b significant without H1a = the gain comes from screening out the static features, not from the
+    probes.
+- **Question 2** (Holm over 4 tests): RF D vs. (1) median baseline, (2) size-only k-NN, (3) best direct probe
+  estimator, (4) best classical estimator. "Better than baseline X" only if significant after Holm with
+  ΔMAE < 0; otherwise "not significantly different" (not "equal").
+- **All other comparisons** (Ridge, k-NN, sets E and F, single direct estimators, every configuration vs. the
+  median): uncorrected p-values, labelled secondary.
+- Reminder: with this protocol a difference of ≈ 0.32 MAE is needed to be detectable (Section 2.7).
+
+### 12.7 Secondary analyses (reported, not used for decisions)
+
+- Breakdown per k-bin and tabular vs. image (Section 2.6), including the share of each model's gain over the median
+  baseline that comes from the image datasets (Phase 2: 87%, Section 5.2).
+- How often each candidate is selected over the 50 training parts (sets C and D).
+- Additional error measures T3 (project doc *Ideas – To Be Tested*), from the saved predictions.
+- Descriptive screening on all 100 datasets (rule of Section 10.1) for each of the 22 candidates, for
+  interpretation only.
+
+### 12.8 Learning curve (O1)
+
+Run for RF D only, after the main run, with the design of Section 6 unchanged (test folds as in Section 2;
+training part subsampled by group, stratified by k-bin, to 25/50/75/100%, 5 draws; plateau rule and additional
+condition). Screening (12.2) and tuning are redone on every subsampled training part. If time runs short, this
+step is dropped first and reported as not done.
+
+### 12.9 Implementation
+
+- New `train_phase4.py`: reads both tables and the folds through `evaluation.py` (unchanged); reuses the model
+  definitions and grids of `train_static.py` (unchanged, so Phase 2 stays reproducible); writes `outputs/phase4/`,
+  and `results/phase4/` only after a full, valid run.
+- Runs on the user's PC (CPU only).
 
 ---
 
