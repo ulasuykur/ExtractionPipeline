@@ -13,7 +13,8 @@ This file is the detailed record; the project docs only reference it
 >   → `data/probe_features.csv` (16 probe features, no missing values).
 > - Phase 4, static + probe meta-learner: **design fixed before any result** (2026-10-01, branch
 >   `feature/phase4-evaluation`, Section 12). Feature screening moved inside the training parts (deviation from
->   Section 11.3). Next: implementation (`train_phase4.py`).
+>   Section 11.3). `train_phase4.py` written and smoke-tested with fake probe data; next: full run on the
+>   user's PC.
 > - Learning curve (O1): to be run in Phase 4 for the main meta-learner (Section 12.8; design in Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -47,6 +48,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
 | 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
 | 2026-10-01 | `feature/phase4-evaluation` | Branch created from `master`. Phase 4 design fixed before any result: screening of the 6 static + 16 probe candidates inside each training part with the §10.1 rule (deviation from §11.3: not on all 100 datasets); six feature sets × Ridge/k-NN/RF, log k only; RF primary; Holm-corrected decision rules for Q1 (2 tests) and Q2 (4 tests); baselines incl. direct probe and T1 estimators; learning curve for the main meta-learner; quotes Q20–Q21 (Ambroise & McLachlan 2002) added | Section 12 |
+| 2026-10-01 | `feature/phase4-evaluation` | `train_phase4.py` added (design of §12). Smoke test in the Claude sandbox with random fake probe features, 1 repeat: sets A/B and the median baseline reproduce the Phase 2 fold scores (max difference 9e-16); the copied screening rule reproduces §10.1 (max 5e-5, rounding). Guard added before any result: a constant candidate fails the screening | Section 12.2 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -945,6 +947,8 @@ nested tuning, Section 2.5, Q6–Q7). The screening is therefore part of trainin
   `conc_mean`) and/or the 16 probe features, depending on the feature set (12.3). `log_n` and `log_p` are always
   included (the rule measures information *beyond* size).
 - If no candidate passes, the model uses `log_n` + `log_p` only.
+- A candidate that is constant in the training part (or in its tabular part) fails (added before any result, after
+  the smoke test: its rank residuals would otherwise be floating-point noise and give a random ρ).
 - The screening runs once per outer training part, before tuning; the inner tuning CV (Section 2.5) then uses the
   selected columns. It is not repeated inside the inner folds; this affects only the hyperparameter choice, never
   the test part.
