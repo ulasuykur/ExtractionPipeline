@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-01 17:54",
+  "design": "docs/metalearner_methodology.md \u00a712.7 (T3); reported only",
+  "predictions_sha256": "e0a4332db3257de4ddfff21a550885cf347aabae2114be151165095188f03301",
+  "main_summary_sha256": "4fea212b2bbec5aae84187a5390b37da338fd5bd3fe09f6b1a60b56c7cd9535d",
+  "mae_check_max_diff": 4.778613199540871e-05,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1"
+}

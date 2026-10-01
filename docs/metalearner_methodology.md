@@ -11,19 +11,20 @@ This file is the detailed record; the project docs only reference it
 > - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
-> - Phase 4, static + probe meta-learner: **main run completed** (2026-10-01, branch `feature/phase4-evaluation`,
->   Section 12; design fixed before any result, Sections 12.1–12.9). Result (Section 12.10): the probe features do
->   not improve the meta-learner, and the main meta-learner is not significantly better than the median baseline.
->   Next: learning curve, additional error measures T3, post-hoc analysis of why the probes fail.
-> - Learning curve (O1): to be run in Phase 4 for the main meta-learner (Section 12.8; design in Section 6).
+> - Phase 4, static + probe meta-learner: **main run, T3 measures and learning curve completed** (2026-10-01, branch
+>   `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9). Results (Sections
+>   12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
+>   better than the median baseline, and by the §6 rule more datasets would not fix this. Next: post-hoc analysis of
+>   why the probes fail (labelled post-hoc).
+> - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
 > Every development step adds a dated row there and updates this box.
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py` |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/` (committed), predictions in `outputs/phase4/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -51,6 +52,8 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | `train_phase4.py` added (design of §12). Smoke test in the Claude sandbox with random fake probe features, 1 repeat: sets A/B and the median baseline reproduce the Phase 2 fold scores (max difference 9e-16); the copied screening rule reproduces §10.1 (max 5e-5, rounding). Guard added before any result: a constant candidate fails the screening | Section 12.2 |
 | 2026-10-01 | `feature/phase4-evaluation` | Main Phase 4 run on the user's PC (29.7 min; Phase 2 check passed, max difference 8.9e-16). Probe candidates passed the in-fold screening in 3 of 50 training parts; H1a/H1b not significant (no probe effect); RF D (MAE 3.87) not significantly better than the median (4.11) or the size-only k-NN (3.77), significantly better than the best direct probe (5.30) and classical (9.09) estimators, which are both worse than the median. Results in `results/phase4/` | Section 12.10 |
 | 2026-10-01 | `feature/phase4-evaluation` | `learning_curve.py` (§12.8) and `t3_measures.py` (§12.7) added; details fixed before any of their results (bullets in §12.7–12.8; RRMSE and a tabular/image split added to T3). Smoke tests in the Claude sandbox with random fake probe features passed: the learning curve's 100% point reproduces the (fake) main run (max difference 9e-16); T3 reproduces the main-run MAE | Sections 12.7–12.8 |
+| 2026-10-01 | `feature/phase4-evaluation` | T3 measures (`results/phase4_t3/`; MAE check passed): the MAE ranking holds for all measures; no model beats the training mean on MRAE, best RRMSE 0.985; the constant baselines win on MAPE and exact hits; on the image datasets the models beat the constants mainly through size (Spearman ρ 0.73, probes alone 0.34), on the tabular datasets no model ranks k | Section 12.11 |
+| 2026-10-01 | `feature/phase4-evaluation` | Learning curve (57.8 min; 100% check passed): RF D 4.25 / 4.10 / 3.99 / 3.87 at ≈ 20/40/60/80 training datasets; step 75→100% −0.11 (2.8%, p = 0.31) → leveled off by the §6 rule; the model does not beat the median → "the features lack signal" (§6); descriptively the curve still falls | Section 12.12 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -408,6 +411,8 @@ be adapted to the result:
 - **Additional condition:** a flat curve closes O1 as "100 datasets are enough" only if the
   model at 100% beats the median baseline. Otherwise the conclusion is "the features lack
   signal", which more datasets would not fix.
+
+**Run (2026-10-01):** for the Phase 4 main meta-learner, see Section 12.12.
 
 ---
 
@@ -1147,6 +1152,89 @@ and for this pool.
 
 **Next steps (user, 2026-10-01).** Learning curve (12.8), additional error measures T3, post-hoc analysis of why
 the probes fail; then possible changes to the setup on a separate branch.
+
+### 12.11 Additional error measures T3 (2026-10-01; reported only)
+
+**Run.** `python t3_measures.py` on the user's PC, from `outputs/phase4/predictions.csv` (fingerprint `e0a4332d…`).
+Built-in check passed: the recomputed MAE equals `results/phase4/summary.csv` (max difference 4.8e-5, rounding of the
+saved table). MRAE: no test dataset had k equal to its training mean, so no value was excluded. Outputs:
+`results/phase4_t3/` (`t3_summary.csv`, `t3_by_source.csv`, `t3_fold_scores.csv`).
+
+**All 100 datasets** (mean over the 10 repeats). Lower is better, except exact hits and Spearman ρ. MRAE and RRMSE
+below 1 = better than always predicting the mean k of the training part (the "average" baseline of Pimentel &
+de Carvalho 2020, §5.5).
+
+| configuration | MAE | RMSE | abs. log error | MAPE | MRAE | RRMSE | median abs. error | exact hits | Spearman ρ |
+|---|---|---|---|---|---|---|---|---|---|
+| median baseline | 4.112 | 7.883 | 0.622 | 0.563 | 2.054 | 1.055 | 2.060 | 11.0% | – |
+| mean baseline | 4.646 | 7.462 | 0.713 | 1.044 | 1.000 | 1.000 | 3.502 | 4.1% | – |
+| 1/k-weighted median | 4.280 | 8.308 | 0.671 | 0.459 | 2.641 | 1.118 | 1.340 | 15.0% | – |
+| most frequent k | 4.760 | 8.815 | 0.866 | 0.466 | 3.283 | 1.193 | 2.340 | 26.0% | – |
+| k-NN B (size only) | 3.767 | 7.287 | 0.567 | 0.588 | 1.912 | 0.985 | 2.029 | 15.5% | 0.22 |
+| RF A (static 8) | 4.037 | 7.500 | 0.611 | 0.668 | 1.655 | 1.006 | 2.473 | 13.0% | 0.14 |
+| RF D (main) | 3.874 | 7.348 | 0.586 | 0.643 | 1.800 | 0.990 | 2.084 | 14.2% | 0.20 |
+| RF E (all 24, unscreened) | 4.094 | 7.524 | 0.619 | 0.678 | 1.867 | 1.008 | 2.531 | 8.9% | 0.14 |
+| RF F (probe 16) | 4.157 | 7.565 | 0.626 | 0.693 | 2.057 | 1.013 | 2.450 | 9.5% | 0.18 |
+| best direct probe estimator | 5.302 | 9.822 | 0.845 | 0.680 | 6.171 | 1.353 | 2.380 | 18.7% | 0.05 |
+| best classical estimator | 9.085 | 15.797 | 1.019 | 1.768 | 10.767 | 2.257 | 3.410 | 18.7% | −0.02 |
+
+Spearman ρ is computed per test part and averaged; it is undefined for constant predictions.
+
+**Split by source** (pooled over the test predictions of each repeat, mean over the 10 repeats; `t3_by_source.csv`):
+
+| configuration | tabular (83): MAE | RRMSE | Spearman ρ | image (17): MAE | RRMSE | Spearman ρ |
+|---|---|---|---|---|---|---|
+| median baseline | 3.487 | 1.043 | – | 7.165 | 1.075 | – |
+| k-NN B (size only) | 3.433 | 0.986 | 0.06 | 5.399 | 0.947 | 0.73 |
+| RF D (main) | 3.523 | 0.989 | 0.10 | 5.588 | 0.968 | 0.48 |
+| RF E (all 24, unscreened) | 3.606 | 1.030 | −0.03 | 6.475 | 0.981 | 0.45 |
+| RF F (probe 16) | 3.647 | 1.040 | 0.03 | 6.646 | 0.984 | 0.34 |
+| best direct probe estimator | 4.719 | 1.418 | 0.06 | 8.147 | 1.143 | −0.05 |
+
+**Findings.**
+1. The ranking by MAE holds for the other measures: the size-only k-NN is best on RMSE, absolute log error and
+   RRMSE; the probe sets E and F are close to the constant baselines.
+2. Against the "average" baseline, no model wins on MRAE (all above 1), and the best RRMSE is 0.985, i.e. 1.5% better
+   than always predicting the training mean. This is the pattern Pimentel & de Carvalho report for some of their
+   targets (Q11).
+3. On MAPE and exact hits, the constant baselines win (1/k-weighted median: MAPE 0.46; "always the most frequent k",
+   i.e. k = 2: 26% exact hits), because the meta-learners over-predict small k.
+4. Tabular vs. image (descriptive): on the tabular datasets no model ranks the datasets by k (ρ between −0.03 and
+   0.10) and none is clearly better than the median. On the image datasets the models are better than every constant
+   baseline, but mainly through size (size-only k-NN: ρ 0.73); the probe features alone reach ρ 0.34 and MAE 6.65
+   (median 7.17), and adding them to the static features (E) is worse than size alone. Caveat: 17 image datasets
+   from 8 sources with 6 distinct k values, 9 of them class-subset variants of the MNIST family.
+
+### 12.12 Learning curve (O1) (2026-10-01)
+
+**Run.** `python learning_curve.py` on the user's PC (57.8 min), code as committed. Built-in check passed: the 100%
+point reproduces the main run (max difference 8.9e-16, `lc_check.csv`). Outputs: `results/phase4_lc/`.
+
+| training datasets | RF D: MAE | RF D: within ±1 | median baseline: MAE |
+|---|---|---|---|
+| ≈ 20 (25%) | 4.247 ± 0.089 | 31.9% | 4.129 |
+| ≈ 40 (50%) | 4.096 ± 0.049 | 33.7% | 4.127 |
+| ≈ 60 (75%) | 3.985 ± 0.065 | 36.0% | 4.123 |
+| 80 (100%) | 3.874 ± 0.107 | 36.9% | 4.112 |
+
+Mean ± sd over the 10 repeats (the 5 draws per fold averaged first).
+
+![Learning curve of the main meta-learner (RF, set D) and the median baseline](../results/phase4_lc/fig_learning_curve.png)
+
+**§6 decision (as fixed).** Step 75% → 100%: ΔMAE −0.111 [−0.328, +0.106], p = 0.31 (corrected t-test), relative gain
+2.8% (< 5%). By the plateau rule the curve has leveled off. The additional condition is not met: RF D does not beat
+the median baseline (§12.10, Holm p = 0.31). Pre-registered conclusion: **the features lack signal, which more
+datasets would not fix.**
+
+**Descriptive reading (not a decision).** The curve still falls steadily, by 0.15, 0.11 and 0.11 MAE per additional
+≈ 20 training datasets, and the 100% point is better than the 75% point in all 10 repeats. The last step is smaller
+than what the protocol can detect (≈ 0.32, §2.7). A small further gain from more datasets is therefore not excluded;
+given §12.10–12.11, it would most likely come from the size signal on the image datasets, not from the probe
+features. With ≈ 20 training datasets the model is worse than the median (+0.12 MAE); it overtakes the median between
+≈ 20 and ≈ 40.
+
+**Consequence for O1.** For the Phase 4 setup, the learning curve gives no evidence that a larger pool would make the
+probe features useful. Enlarging the pool would be a change to the setup (post-hoc, on a separate branch).
 
 ---
 
