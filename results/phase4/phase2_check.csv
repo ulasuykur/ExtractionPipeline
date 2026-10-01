@@ -1,0 +1,8 @@
+config,phase2_config,folds,max_abs_diff,ok
+median_baseline,median_baseline,50,8.881784197001252e-16,True
+ridge__A__logk,ridge__static8__logk,50,4.440892098500626e-16,True
+knn__A__logk,knn__static8__logk,50,8.881784197001252e-16,True
+rf__A__logk,rf__static8__logk,50,8.881784197001252e-16,True
+ridge__B__logk,ridge__size2__logk,50,4.440892098500626e-16,True
+knn__B__logk,knn__size2__logk,50,8.881784197001252e-16,True
+rf__B__logk,rf__size2__logk,50,8.881784197001252e-16,True

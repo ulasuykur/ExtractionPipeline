@@ -1,0 +1,8 @@
+test,config,compared_with,mean_diff,ci_low,ci_high,t,p
+ridge: D vs C,ridge__D__logk,ridge__C__logk,0.0229,-0.0729,0.1188,0.4806,0.6330
+knn: D vs C,knn__D__logk,knn__C__logk,0.0112,-0.0383,0.0608,0.4559,0.6505
+ridge: D vs A,ridge__D__logk,ridge__A__logk,-0.0664,-0.2046,0.0717,-0.9659,0.3388
+knn: D vs A,knn__D__logk,knn__A__logk,-0.3447,-0.7335,0.0442,-1.7813,0.0811
+ridge: E vs A,ridge__E__logk,ridge__A__logk,-0.0141,-0.1194,0.0913,-0.2680,0.7898
+knn: E vs A,knn__E__logk,knn__A__logk,0.0294,-0.2367,0.2955,0.2219,0.8253
+rf: E vs A,rf__E__logk,rf__A__logk,0.0572,-0.1514,0.2659,0.5511,0.5840

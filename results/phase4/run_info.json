@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-01 14:55",
+  "design": "docs/metalearner_methodology.md \u00a712, Design Decisions Log D13",
+  "full_run": true,
+  "valid_phase2_check": true,
+  "repeats": 10,
+  "runtime_s": 1779,
+  "metafeatures_sha256": "d99f3eca18f2e6ba32cbb5223abe7c4eb33209a32146b078806ec2212e61eb88",
+  "probe_features_sha256": "b2ee5e5f56778865c018d60c592d0679d6cf5f0a997b12fd74c8650d83e2e921",
+  "t1_candidates_sha256": "970a5556ca14098ad156b08e4d7ee14f8e4f67a62a127c9c6bf614d5a0dcc37e",
+  "cv_folds_sha256": "721afc6e17279ba9a2bd847d1e2c94c5f48515a49de62ccf13b059309f3c5b4f",
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1",
+  "scikit-learn": "1.9.0",
+  "matplotlib": "3.10.9"
+}

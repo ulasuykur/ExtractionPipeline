@@ -11,10 +11,10 @@ This file is the detailed record; the project docs only reference it
 > - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
-> - Phase 4, static + probe meta-learner: **design fixed before any result** (2026-10-01, branch
->   `feature/phase4-evaluation`, Section 12). Feature screening moved inside the training parts (deviation from
->   Section 11.3). `train_phase4.py` written and smoke-tested with fake probe data; next: full run on the
->   user's PC.
+> - Phase 4, static + probe meta-learner: **main run completed** (2026-10-01, branch `feature/phase4-evaluation`,
+>   Section 12; design fixed before any result, Sections 12.1–12.9). Result (Section 12.10): the probe features do
+>   not improve the meta-learner, and the main meta-learner is not significantly better than the median baseline.
+>   Next: learning curve, additional error measures T3, post-hoc analysis of why the probes fail.
 > - Learning curve (O1): to be run in Phase 4 for the main meta-learner (Section 12.8; design in Section 6).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -22,8 +22,8 @@ This file is the detailed record; the project docs only reference it
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/` |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/` (committed), predictions in `outputs/phase4/` (git-ignored) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -49,6 +49,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
 | 2026-10-01 | `feature/phase4-evaluation` | Branch created from `master`. Phase 4 design fixed before any result: screening of the 6 static + 16 probe candidates inside each training part with the §10.1 rule (deviation from §11.3: not on all 100 datasets); six feature sets × Ridge/k-NN/RF, log k only; RF primary; Holm-corrected decision rules for Q1 (2 tests) and Q2 (4 tests); baselines incl. direct probe and T1 estimators; learning curve for the main meta-learner; quotes Q20–Q21 (Ambroise & McLachlan 2002) added | Section 12 |
 | 2026-10-01 | `feature/phase4-evaluation` | `train_phase4.py` added (design of §12). Smoke test in the Claude sandbox with random fake probe features, 1 repeat: sets A/B and the median baseline reproduce the Phase 2 fold scores (max difference 9e-16); the copied screening rule reproduces §10.1 (max 5e-5, rounding). Guard added before any result: a constant candidate fails the screening | Section 12.2 |
+| 2026-10-01 | `feature/phase4-evaluation` | Main Phase 4 run on the user's PC (29.7 min; Phase 2 check passed, max difference 8.9e-16). Probe candidates passed the in-fold screening in 3 of 50 training parts; H1a/H1b not significant (no probe effect); RF D (MAE 3.87) not significantly better than the median (4.11) or the size-only k-NN (3.77), significantly better than the best direct probe (5.30) and classical (9.09) estimators, which are both worse than the median. Results in `results/phase4/` | Section 12.10 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1032,6 +1033,103 @@ step is dropped first and reported as not done.
   definitions and grids of `train_static.py` (unchanged, so Phase 2 stays reproducible); writes `outputs/phase4/`,
   and `results/phase4/` only after a full, valid run.
 - Runs on the user's PC (CPU only).
+
+### 12.10 Results of the main run (2026-10-01)
+
+**Run.** `python train_phase4.py` on the user's PC (29.7 min), code as committed. Both built-in checks passed: the
+copied screening rule reproduces §10.1 (max difference 5e-5, rounding), and sets A and B and the median baseline
+reproduce the Phase 2 fold scores (max difference 8.9e-16, `phase2_check.csv`). Fingerprints (line endings
+normalized): `metafeatures.csv` `d99f3eca…` (the same file as `ab77ee3d…` in §8, which was computed on the raw
+Windows bytes), `probe_features.csv` `b2ee5e5f…`, `results/t1_classical/candidates.csv` `970a5556…`,
+`cv_folds.csv` `721afc6e…`. Outputs: `results/phase4/`; per-dataset predictions in `outputs/phase4/predictions.csv`
+(git-ignored; the run is deterministic).
+
+**Screening (12.2).** In 47 of the 50 training parts no candidate passed, so set D used only `log_n` + `log_p`
+(i.e. set B). G3_DEC passed in 2 training parts (ρ beyond size 0.355 and 0.343), O3_IDEC in 1 (0.339). No static
+candidate passed in any training part, so set C is identical to set B. Median ρ beyond size over the 50 training
+parts: G3_DEC 0.23, O3_IDEC 0.19, all other candidates between −0.14 and 0.11 (`selection_frequency.csv`).
+Descriptive, on all 100 datasets: no candidate would pass (largest: G3_DEC 0.22, tabular 0.14; O3_IDEC 0.20,
+tabular 0.21; `screen_all100.csv`).
+
+**Meta-learners.** MAE (mean over 10 repeats), with Δ vs. the median baseline and the uncorrected p-value of the
+corrected t-test in brackets. Median baseline: 4.112 ± 0.010, within ±1 36.0%.
+
+| set | Ridge | k-NN | Random Forest |
+|---|---|---|---|
+| A static 8 | 4.111 (−0.00; 0.98) | 4.123 (+0.01; 0.93) | 4.037 (−0.08; 0.37) |
+| B `log_n` + `log_p` | 4.022 (−0.09; 0.21) | 3.767 (−0.35; 0.018) | 3.844 (−0.27; 0.09) |
+| C size + screened static | = B | = B | = B |
+| D size + screened static & probe | 4.045 (−0.07; 0.46) | 3.778 (−0.33; 0.026) | **3.874 (−0.24; 0.15)** |
+| E static 8 + probe 16, unscreened | 4.097 (−0.02; 0.79) | 4.152 (+0.04; 0.62) | 4.094 (−0.02; 0.87) |
+| F probe 16, unscreened | 4.121 (+0.01; 0.92) | 4.237 (+0.13; 0.62) | 4.157 (+0.05; 0.76) |
+
+Within ±1: RF D 36.9%, k-NN D 38.5%, Ridge D 33.7%; sets E and F 29–32%. Standard deviations over the repeats:
+`summary.csv`.
+
+**Pre-registered tests (12.6).** ΔMAE = RF D minus the comparison (negative = RF D better); corrected t-test.
+
+| family | test | ΔMAE [95% interval] | p | p (Holm) | improvement claimed? |
+|---|---|---|---|---|---|
+| Q1 | H1a: RF D vs. RF C (probe effect) | +0.030 [−0.116, +0.176] | 0.682 | 0.682 | no |
+| Q1 | H1b: RF D vs. RF A (Phase 2 reference) | −0.163 [−0.446, +0.120] | 0.254 | 0.508 | no |
+| Q2 | RF D vs. median baseline | −0.238 [−0.568, +0.092] | 0.153 | 0.307 | no |
+| Q2 | RF D vs. size-only k-NN (set B) | +0.107 [−0.162, +0.377] | 0.428 | 0.428 | no |
+| Q2 | RF D vs. best direct probe estimator | −1.428 [−2.466, −0.389] | 0.008 | 0.024 | yes |
+| Q2 | RF D vs. best classical estimator (T1) | −5.211 [−7.413, −3.009] | < 0.001 | < 0.001 | yes |
+
+**Direct estimators (12.5).** Every direct estimator is worse than the median baseline. Probe estimators: L1_DEC
+4.69, G1_DEC 4.80 (DEC's G-ratio rule, Q14–Q15, applied as a fixed rule), L1_IDEC 4.93, G1_IDEC 5.10, G2 5.28–5.58,
+G3 6.67–12.96, G4 8.38–9.00, and the number of clusters in use at K = 50 (O1, O2) 16.0–25.7 (DEC and IDEC keep far
+more clusters in use than there are classes). The "best direct probe estimator" chosen on the training part was
+L1_DEC in 35, L1_IDEC in 13 and G1_DEC in 2 of the 50 folds (MAE 5.30). Its higher share within ±1 (42% vs. 36%)
+comes from small k: L1 almost always returns k ≈ 2 (L1_DEC within ±1: 100% for k = 2 and k = 3, at most 19%
+above). Classical estimators (T1): Calinski–Harabasz 7.81, silhouette 8.04, Davies–Bouldin 17.47, mixture BIC
+32.82; the best one chosen on the training part was Calinski–Harabasz in 33 and silhouette in 17 folds (MAE 9.09).
+
+**Secondary comparisons (uncorrected).** D vs. C: Ridge +0.02, k-NN +0.01 (p ≥ 0.63). D vs. A: Ridge −0.07
+(p = 0.34), k-NN −0.35 (p = 0.08). E vs. A (all 24 features unscreened vs. static 8): RF +0.06, k-NN +0.03,
+Ridge −0.01 (p ≥ 0.58).
+
+**Where the errors and gains are** (MAE pooled over the repeats; `breakdown.csv`, `gain_share.csv`):
+
+| subgroup (datasets) | median baseline | k-NN B | RF D | RF E | RF F | best direct probe |
+|---|---|---|---|---|---|---|
+| k = 2 (26) | 2.06 | 2.44 | 2.76 | 2.83 | 2.89 | 1.38 |
+| k = 3 (15) | 1.06 | 1.21 | 1.34 | 1.67 | 1.72 | 1.16 |
+| k = 4–5 (21) | 0.52 | 0.94 | 1.07 | 0.92 | 0.92 | 2.44 |
+| k = 6–9 (14) | 3.08 | 2.07 | 2.07 | 2.72 | 2.91 | 6.77 |
+| k = 10–19 (18) | 6.16 | 4.59 | 4.42 | 4.72 | 4.80 | 8.01 |
+| k = 20–50 (6) | 29.45 | 27.32 | 27.38 | 28.06 | 28.03 | 31.10 |
+| tabular (83) | 3.49 | 3.43 | 3.52 | 3.61 | 3.65 | 4.72 |
+| image (17) | 7.16 | 5.40 | 5.59 | 6.48 | 6.65 | 8.15 |
+
+Gain over the median baseline (summed absolute error over the datasets, per repeat): RF D +23.8, of which images
++26.8 and tabular −3.0; k-NN D +33.4 (images 88%); k-NN B +34.5 (images 87%, as in Phase 2, §5.2).
+
+![MAE and within ±1 of all Phase 4 configurations vs. the median baseline](../results/phase4/fig_scores.png)
+
+![Predicted vs. true k per dataset, sets A, C and D](../results/phase4/fig_pred_vs_true.png)
+
+**Findings.**
+1. **The probe features do not improve the meta-learner (Q1).** Under the in-fold screening they are almost never
+   selected (3 of 50 training parts), so the main meta-learner is in effect the size-only model. Offered without
+   screening (E) or on their own (F), they make every model worse than size only and no better than the median.
+2. **The main meta-learner is not significantly better than the median baseline (Q2)** and not different from the
+   size-only k-NN of Phase 2. As in Phase 2, its gain comes from the image datasets; on the tabular datasets it is
+   slightly worse than the median.
+3. **It is significantly better than the best direct probe estimator and the best classical estimator**, but only
+   because every direct estimator is itself worse than the constant median. DEC's G-ratio rule (G1), applied as a
+   fixed rule, does not recover the class count in this pool.
+4. **The pilot's sanity check did not carry over to the pool.** 9 of 16 features ordered the MNIST family
+   correctly (R2a, §11.4); on the heterogeneous pool none carries information beyond size. This was anticipated in
+   §11.3 (R2a is "not evidence that the meta-learner improves").
+
+**Not concluded here.** Why the probes fail is not tested by this run (next: a post-hoc analysis, labelled as
+such). The result holds for the probe design of §11 (DEC and IDEC, 500 probe steps, one fixed network, 3 seeds)
+and for this pool.
+
+**Next steps (user, 2026-10-01).** Learning curve (12.8), additional error measures T3, post-hoc analysis of why
+the probes fail; then possible changes to the setup on a separate branch.
 
 ---
 
