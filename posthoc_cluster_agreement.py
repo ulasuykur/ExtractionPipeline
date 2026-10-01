@@ -37,7 +37,11 @@ Reading, fixed before the run (descriptive, post-hoc): the hypothesis is SUPPORT
 NOT SUPPORTED if neither holds; PARTLY SUPPORTED otherwise.
 
 Built-in checks: every dataset's reconstructed training rows must have the same number of points as the
-saved cluster labels and as results/phase3_full/per_seed.csv, and the number of classes must equal k_true.
+saved cluster labels and as results/phase3_full/per_seed.csv, and the loaded dataset must have k_true classes.
+The probe rows themselves may miss a very rare class (the label-free draw holds out 10% of the rows and keeps
+at most 5,000); this is recorded per dataset (classes_in_probe_rows), not treated as an error. Changed on
+2026-10-02 after the first run stopped at Engine1 (k_true 3, only 2 classes in its 345 probe rows); the
+earlier check required k_true classes in the probe rows (methodology §12.13, deviation).
 
 Runs on the cluster (the saved labels and the OpenML cache are there), CPU only:
     sbatch slurm/run_posthoc_c.sh
@@ -91,7 +95,9 @@ MAX_RHO = -0.30  # reading rule (2)
 # ----------------------------------------------------------------------------------------
 def load_with_labels(spec):
     """Same steps as probes.prepare_data (same functions, same order, same random draw), but the
-    true labels of the training rows are kept. Returns (X_train, y_train)."""
+    true labels of the training rows are kept. Returns (X_train, y_train, number of classes in the
+    loaded dataset, i.e. in ALL its rows after a class subset, before the probe row draw).
+    """
     import probes  # imported here: needs torch/clustpy, only available in the project env
     from extractor import drop_constant_columns, load_openml_numeric, take_class_subset
 
@@ -102,13 +108,16 @@ def load_with_labels(spec):
     if has_subset:
         X, y, _ = take_class_subset(X, y, dataset_id, int(subset_k), int(spec["n_max"]))
     X = drop_constant_columns(X)
+    y = np.asarray(y)
+    # classes in ALL rows of the loaded dataset: must equal k_true (checked in agreement_one)
+    n_classes_loaded = len(np.unique(y))
     is_image = spec["source"] in probes.IMAGE_SOURCES
     rng_key = [dataset_id, int(subset_k) if has_subset else 0]
     data = probes.split_and_scale(
         X, is_image, rng_key
     )  # the identical row draw and scaling
-    y_train = np.asarray(y)[data["rows_train"]]
-    return data["X_train"], y_train
+    y_train = y[data["rows_train"]]
+    return data["X_train"], y_train, n_classes_loaded
 
 
 def saved_runs(name):
@@ -132,19 +141,30 @@ def nearest_on_log_scale(candidates, k_true):
 # ----------------------------------------------------------------------------------------
 def agreement_one(spec, k_true, n_train_expected):
     name = spec["name"]
-    X_train, y = load_with_labels(spec)
+    X_train, y, n_classes_loaded = load_with_labels(spec)
     runs = saved_runs(name)
     if not runs:
         raise SystemExit(f"{name}: no saved labels in {PROBE_OUT / name / 'labels'}")
-    # built-in checks: same rows as in Phase 3, same number of classes as the ground truth
+    # built-in checks: same rows as in Phase 3, and the loaded dataset has k_true classes (the right
+    # dataset / class subset was reconstructed)
     lengths = {len(v) for v in runs.values()}
     if lengths != {len(y)} or len(y) != n_train_expected:
         raise SystemExit(
             f"{name}: rows {len(y)}, saved labels {lengths}, per_seed {n_train_expected}"
         )
-    if len(np.unique(y)) != k_true:
+    if n_classes_loaded != k_true:
         raise SystemExit(
-            f"{name}: {len(np.unique(y))} classes in the probe rows, k_true {k_true}"
+            f"{name}: {n_classes_loaded} classes in the loaded data, k_true {k_true}"
+        )
+    # The probe rows may miss a very rare class (label-free draw: 10% held out, at most 5,000
+    # rows). Recorded and reported, not an error. AMI/ARI compare with the classes in these rows.
+    classes_in_rows = len(np.unique(y))
+    if classes_in_rows < 2:
+        raise SystemExit(f"{name}: fewer than 2 classes in the probe rows")
+    if classes_in_rows < k_true:
+        print(
+            f"  note: {name}: {classes_in_rows} of {k_true} classes in the probe rows",
+            flush=True,
         )
 
     run_rows = []
@@ -167,7 +187,13 @@ def agreement_one(spec, k_true, n_train_expected):
     k_ref = nearest_on_log_scale(grid["k"].unique(), k_true)
     seed_mean = grid.groupby(["algorithm", "k"])[["ami", "ari"]].mean()
 
-    row = {"name": name, "k_true": k_true, "n_train": len(y), "k_ref": k_ref}
+    row = {
+        "name": name,
+        "k_true": k_true,
+        "classes_in_probe_rows": classes_in_rows,
+        "n_train": len(y),
+        "k_ref": k_ref,
+    }
     for alg in ["DEC", "IDEC"]:
         at_ref = grid[(grid["algorithm"] == alg) & (grid["k"] == k_ref)]
         best = seed_mean.loc[alg]["ami"]
@@ -197,6 +223,10 @@ def summarize(per_dataset, meta, probe):
     )
     d["type"] = np.where(d["source"].str.startswith("image"), "image", "tabular")
     out = {"by_type": {}, "families": {}, "rho_ami_vs_probe_error": {}}
+    missing = d[d["classes_in_probe_rows"] < d["k_true"]]
+    out["datasets_with_classes_missing_in_probe_rows"] = missing[
+        ["name", "k_true", "classes_in_probe_rows"]
+    ].to_dict("records")
     cols = [
         "ami_DEC",
         "ami_IDEC",
@@ -398,7 +428,15 @@ def main(argv=None):
     print(f"\nSaved {OUT_DIR}\n")
     print(
         json.dumps(
-            {k: summary[k] for k in ["by_type", "rho_ami_vs_probe_error", "reading"]},
+            {
+                k: summary[k]
+                for k in [
+                    "datasets_with_classes_missing_in_probe_rows",
+                    "by_type",
+                    "rho_ami_vs_probe_error",
+                    "reading",
+                ]
+            },
             indent=2,
         )
     )

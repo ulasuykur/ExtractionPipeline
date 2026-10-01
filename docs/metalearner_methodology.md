@@ -4,7 +4,7 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-10-01)**
+> **Current status (last updated 2026-10-02)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
@@ -16,7 +16,8 @@ This file is the detailed record; the project docs only reference it
 >   12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
 >   better than the median baseline, and by the §6 rule more datasets would not fix this. Post-hoc analysis (a)+(b)
 >   done (Section 12.13): the probe features carry information about k on the image datasets but not on the tabular
->   ones. Next: decision on (c) and on changes to the setup (separate branch).
+>   ones. Post-hoc (c) designed (2026-10-02); its first run stopped at a built-in check and is rerun after a
+>   documented fix (Section 12.13). Next: (c) results, then post-hoc variants on a separate branch.
 > - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -58,6 +59,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) designed after the Phase 4 results (labelled post-hoc, descriptive only): `posthoc_probes.py` added; smoke test with fake probe data passed | Section 12.13 |
 | 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) run (labelled post-hoc, `results/phase4_posthoc/`): no probe feature carries information about k on the 83 tabular datasets (\|ρ\| ≤ 0.15, beyond size ≤ 0.21); on the 17 image datasets several do (ρ 0.45–0.68, also beyond size), and within MNIST / Fashion-MNIST / KMNIST G3_DEC orders k almost perfectly; G1 and L1_DEC are dominated by seed noise | Section 12.13 |
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) designed (labelled post-hoc; uses the labels for diagnosis only): `posthoc_cluster_agreement.py` + `slurm/run_posthoc_c.sh`, reading rule fixed before the run; smoke test with synthetic data and the real row-draw code passed | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c): first cluster run stopped at dataset 27 (Engine1: a rare class absent from the probe rows); class check moved from the probe rows to the loaded dataset, classes in the probe rows recorded; reading rule unchanged; smoke test passed | Section 12.13 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1266,6 +1268,12 @@ claim of the thesis rests on it.
   reconstructed rows match the saved labels and `per_seed.csv`, and the number of classes equals k_true. Script
   `posthoc_cluster_agreement.py`, cluster job `slurm/run_posthoc_c.sh` (CPU only); outputs
   `results/phase4_posthoc_c/`.
+  *Deviation (2026-10-02, after the first run stopped at dataset 27 of 100):* the class check was applied to the
+  probe rows, but the label-free row draw (10% held out, at most 5,000 rows) can leave out every row of a very rare
+  class (Engine1: k_true 3, only 2 classes in its 345 probe rows). The check now requires k_true classes in the
+  loaded dataset, which verifies the reconstruction; the number of classes in the probe rows is recorded per dataset
+  (`classes_in_probe_rows`) and reported, and AMI/ARI compare with the classes present in the probe rows. The reading
+  rule is unchanged. The AMI values of the first 26 datasets had been printed before this change.
 
 **Results (a) and (b) (2026-10-01; `results/phase4_posthoc/`).** `python posthoc_probes.py` on the user's PC
 (seconds). Image families: MNIST (`img_554`), Fashion-MNIST (`img_40996`), Kuzushiji-MNIST (`img_41982`), each with
