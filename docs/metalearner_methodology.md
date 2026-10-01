@@ -14,8 +14,9 @@ This file is the detailed record; the project docs only reference it
 > - Phase 4, static + probe meta-learner: **main run, T3 measures and learning curve completed** (2026-10-01, branch
 >   `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9). Results (Sections
 >   12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
->   better than the median baseline, and by the §6 rule more datasets would not fix this. Next: post-hoc analysis of
->   why the probes fail (labelled post-hoc).
+>   better than the median baseline, and by the §6 rule more datasets would not fix this. Post-hoc analysis (a)+(b)
+>   done (Section 12.13): the probe features carry information about k on the image datasets but not on the tabular
+>   ones. Next: decision on (c) and on changes to the setup (separate branch).
 > - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -55,6 +56,8 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | T3 measures (`results/phase4_t3/`; MAE check passed): the MAE ranking holds for all measures; no model beats the training mean on MRAE, best RRMSE 0.985; the constant baselines win on MAPE and exact hits; on the image datasets the models beat the constants mainly through size (Spearman ρ 0.73, probes alone 0.34), on the tabular datasets no model ranks k | Section 12.11 |
 | 2026-10-01 | `feature/phase4-evaluation` | Learning curve (57.8 min; 100% check passed): RF D 4.25 / 4.10 / 3.99 / 3.87 at ≈ 20/40/60/80 training datasets; step 75→100% −0.11 (2.8%, p = 0.31) → leveled off by the §6 rule; the model does not beat the median → "the features lack signal" (§6); descriptively the curve still falls | Section 12.12 |
 | 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) designed after the Phase 4 results (labelled post-hoc, descriptive only): `posthoc_probes.py` added; smoke test with fake probe data passed | Section 12.13 |
+| 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) run (labelled post-hoc, `results/phase4_posthoc/`): no probe feature carries information about k on the 83 tabular datasets (\|ρ\| ≤ 0.15, beyond size ≤ 0.21); on the 17 image datasets several do (ρ 0.45–0.68, also beyond size), and within MNIST / Fashion-MNIST / KMNIST G3_DEC orders k almost perfectly; G1 and L1_DEC are dominated by seed noise | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) designed (labelled post-hoc; uses the labels for diagnosis only): `posthoc_cluster_agreement.py` + `slurm/run_posthoc_c.sh`, reading rule fixed before the run; smoke test with synthetic data and the real row-draw code passed | Section 12.13 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1250,7 +1253,89 @@ claim of the thesis rests on it.
 - (b) Seed noise: Spearman ρ between seed pairs across the 100 datasets, ρ with k per single seed, and the noise
   share (mean sd across seeds / sd of the seed average across datasets). G4 has no per-seed value.
 - Script `posthoc_probes.py` (no GPU, seconds); outputs `results/phase4_posthoc/`.
-- (c) Cluster–class agreement of DEC/IDEC at the true k (uses the labels; diagnosis only): decided after (a) and (b).
+- (c) Cluster–class agreement (designed 2026-10-02 before its run; uses the true labels, diagnosis only, never a
+  meta-feature): no new DC runs. The saved final cluster labels of the Phase 3 probe runs (500 steps) are compared
+  with the true classes of the same rows, reconstructed with the probes' own label-free row draw
+  (`probes.split_and_scale`). Per dataset: AMI and ARI at k_ref (the grid k closest to the true k on the log scale)
+  for DEC and IDEC, mean over the 3 seeds; the best AMI over the grid; k-means on the same scaled rows at k_ref and at
+  the true k as a reference without deep clustering. Summary by data type and image family; Spearman ρ between the
+  AMI and the error |log feature − log k| of G3_DEC, O1_DEC and L1_IDEC. Reading (fixed before the run): the
+  hypothesis "the probes track k where DEC/IDEC recover the classes as clusters" is SUPPORTED if (1) the median AMI on
+  the image datasets exceeds that on the tabular datasets by at least 0.20, for DEC and for IDEC, and (2) ρ ≤ −0.30
+  for at least 2 of the 3 features; NOT SUPPORTED if neither holds; PARTLY SUPPORTED otherwise. Built-in checks: the
+  reconstructed rows match the saved labels and `per_seed.csv`, and the number of classes equals k_true. Script
+  `posthoc_cluster_agreement.py`, cluster job `slurm/run_posthoc_c.sh` (CPU only); outputs
+  `results/phase4_posthoc_c/`.
+
+**Results (a) and (b) (2026-10-01; `results/phase4_posthoc/`).** `python posthoc_probes.py` on the user's PC
+(seconds). Image families: MNIST (`img_554`), Fashion-MNIST (`img_40996`), Kuzushiji-MNIST (`img_41982`), each with
+k = 2, 3, 5, 10. 88 datasets have an uncapped probe k range.
+
+(a) Spearman ρ with the true k (`feature_signal.csv`; "–" = constant within the family):
+
+| feature | all 100 | tabular (83) | image (17) | image, beyond size | MNIST / F-MNIST / KMNIST |
+|---|---|---|---|---|---|
+| G1_DEC | −0.08 | −0.03 | −0.16 | −0.34 | −0.60 / 0.32 / −0.32 |
+| G1_IDEC | 0.14 | 0.03 | 0.57 | 0.57 | 0.40 / 0.20 / 1.00 |
+| G2_DEC | −0.15 | −0.12 | −0.21 | −0.10 | −0.26 / – / – |
+| G2_IDEC | 0.13 | 0.06 | 0.45 | 0.53 | 0.63 / 0.40 / −0.80 |
+| G3_DEC | 0.25 | 0.15 | 0.52 | 0.54 | 0.95 / 1.00 / 1.00 |
+| G3_IDEC | 0.17 | 0.11 | 0.57 | 0.53 | 0.80 / 0.74 / 0.00 |
+| G4_DEC | 0.07 | 0.12 | −0.08 | −0.31 | −0.63 / 0.77 / 0.11 |
+| G4_IDEC | 0.06 | 0.11 | −0.06 | −0.35 | 0.63 / 0.77 / −0.26 |
+| L1_DEC | 0.07 | 0.12 | −0.05 | 0.05 | – / – / 0.26 |
+| L1_IDEC | 0.16 | 0.04 | 0.68 | 0.66 | 1.00 / 0.80 / 1.00 |
+| O1_DEC | 0.13 | 0.05 | 0.51 | 0.50 | 1.00 / 0.80 / 0.80 |
+| O1_IDEC | 0.12 | 0.04 | 0.59 | 0.62 | 1.00 / 0.40 / −0.40 |
+| O2_DEC | 0.13 | 0.04 | 0.49 | 0.46 | 1.00 / 0.80 / 0.80 |
+| O2_IDEC | 0.15 | 0.09 | 0.54 | 0.54 | 0.80 / −0.80 / 0.40 |
+| O3_DEC | −0.02 | −0.03 | −0.26 | −0.31 | −0.32 / −0.80 / −0.40 |
+| O3_IDEC | 0.06 | 0.07 | 0.18 | 0.17 | 1.00 / −0.21 / 0.60 |
+| *log n (reference)* | *0.22* | *0.12* | *0.55* | – | *0.63 each (k = 10 original is the full dataset)* |
+
+Beyond size on the tabular datasets: at most 0.21 (O3_IDEC); G3_DEC 0.14. On the 88 uncapped datasets the values
+are the same as on all 100 (largest: G3_DEC 0.26).
+
+(b) Seed agreement over the 100 datasets (`seed_agreement.csv`):
+
+| feature | seed-pair ρ: mean (min) | noise share | ρ with k, single seeds |
+|---|---|---|---|
+| G1_DEC | 0.27 (0.17) | 0.85 | −0.11 … 0.02 |
+| G1_IDEC | 0.26 (0.16) | 0.86 | −0.03 … 0.20 |
+| G2_DEC | 0.58 (0.54) | 0.08 | −0.15 … −0.10 |
+| G2_IDEC | 0.62 (0.58) | 0.18 | 0.09 … 0.19 |
+| G3_DEC | 0.81 (0.79) | 0.39 | 0.18 … 0.31 |
+| G3_IDEC | 0.90 (0.89) | 0.21 | 0.13 … 0.17 |
+| L1_DEC | 0.25 (0.13) | 0.61 | −0.04 … 0.07 |
+| L1_IDEC | 0.83 (0.82) | 0.16 | 0.18 … 0.23 |
+| O1_DEC | 0.90 (0.88) | 0.24 | 0.10 … 0.14 |
+| O1_IDEC | 0.95 (0.94) | 0.18 | 0.09 … 0.14 |
+| O2_DEC | 0.93 (0.92) | 0.19 | 0.13 … 0.14 |
+| O2_IDEC | 0.97 (0.97) | 0.14 | 0.13 … 0.16 |
+| O3_DEC | 0.93 (0.92) | 0.22 | −0.04 … 0.01 |
+| O3_IDEC | 0.77 (0.75) | 0.29 | 0.02 … 0.05 |
+
+![POST-HOC: Spearman ρ of each feature with the true k, by source](../results/phase4_posthoc/fig_signal_by_source.png)
+
+**Findings (descriptive).**
+1. **Tabular:** no probe feature carries information about k (|ρ| ≤ 0.15; beyond size ≤ 0.21).
+2. **Image:** several probe features do (G1_IDEC, G2_IDEC, G3, L1_IDEC, O1, O2: ρ 0.45–0.68, beyond size
+   0.46–0.66). Within the three families, G3_DEC orders k almost perfectly (0.95 / 1.00 / 1.00), and L1_IDEC, O1_DEC
+   and O2_DEC reach ≥ 0.8 in all three. The pilot's R2a result therefore holds on all three families.
+3. **Dilution:** across all 100 datasets the 83 tabular datasets dilute the signal (ρ ≤ 0.25). This is why no
+   candidate passed the in-fold screening (which by design also requires ρ ≥ 0.20 on the tabular datasets, §10.1)
+   and why the unscreened models (E, F) did not gain.
+4. **Seed noise:** G1 (both algorithms) and L1_DEC are dominated by seed noise (seed agreement 0.13–0.27, noise share
+   0.61–0.86). G3, O1, O2, O3 and L1_IDEC are stable (0.75–0.97), yet carry no information on the tabular datasets,
+   so seed noise is not the main reason.
+5. **Capping** of the probe k range on small datasets is not the reason.
+
+**Interpretation (hypothesis, not tested).** The probe features track k where DEC/IDEC can recover the classes as
+clusters (MNIST-type images), not where they cannot (tabular data). Test: (c).
+
+**Caveats.** Post-hoc; 12 of the 17 image datasets come from three families; each within-family ρ rests on 4
+datasets (one swapped pair gives 0.8); MNIST is DEC's own benchmark; G1, DEC's own rule for choosing k, is
+dominated by seed noise with 3 seeds.
 
 ---
 
