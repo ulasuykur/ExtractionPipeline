@@ -54,6 +54,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | `learning_curve.py` (§12.8) and `t3_measures.py` (§12.7) added; details fixed before any of their results (bullets in §12.7–12.8; RRMSE and a tabular/image split added to T3). Smoke tests in the Claude sandbox with random fake probe features passed: the learning curve's 100% point reproduces the (fake) main run (max difference 9e-16); T3 reproduces the main-run MAE | Sections 12.7–12.8 |
 | 2026-10-01 | `feature/phase4-evaluation` | T3 measures (`results/phase4_t3/`; MAE check passed): the MAE ranking holds for all measures; no model beats the training mean on MRAE, best RRMSE 0.985; the constant baselines win on MAPE and exact hits; on the image datasets the models beat the constants mainly through size (Spearman ρ 0.73, probes alone 0.34), on the tabular datasets no model ranks k | Section 12.11 |
 | 2026-10-01 | `feature/phase4-evaluation` | Learning curve (57.8 min; 100% check passed): RF D 4.25 / 4.10 / 3.99 / 3.87 at ≈ 20/40/60/80 training datasets; step 75→100% −0.11 (2.8%, p = 0.31) → leveled off by the §6 rule; the model does not beat the median → "the features lack signal" (§6); descriptively the curve still falls | Section 12.12 |
+| 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) designed after the Phase 4 results (labelled post-hoc, descriptive only): `posthoc_probes.py` added; smoke test with fake probe data passed | Section 12.13 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1235,6 +1236,21 @@ features. With ≈ 20 training datasets the model is worse than the median (+0.1
 
 **Consequence for O1.** For the Phase 4 setup, the learning curve gives no evidence that a larger pool would make the
 probe features useful. Enlarging the pool would be a change to the setup (post-hoc, on a separate branch).
+
+### 12.13 Post-hoc analysis: why the probe features fail (designed 2026-10-01, after the results of 12.10–12.12)
+
+**Labelled post-hoc:** designed after the Phase 4 results were known; descriptive only, no model is trained and no
+claim of the thesis rests on it.
+
+- (a) Where the probe features carry information: Spearman ρ with k on all / tabular / image datasets; the same
+  beyond size (partial Spearman, §10.1); within each image family whose variants differ only in k (MNIST,
+  Fashion-MNIST, KMNIST) and their mean; ρ with log n and log p; ρ on the datasets whose probe k range was not
+  capped (n_train ≥ 250). Within the families, the probes saw the same number of rows (≤ 5,000), but log n differs
+  (the k = 10 original is the full dataset), so the within-family check is clean for the probe features only.
+- (b) Seed noise: Spearman ρ between seed pairs across the 100 datasets, ρ with k per single seed, and the noise
+  share (mean sd across seeds / sd of the seed average across datasets). G4 has no per-seed value.
+- Script `posthoc_probes.py` (no GPU, seconds); outputs `results/phase4_posthoc/`.
+- (c) Cluster–class agreement of DEC/IDEC at the true k (uses the labels; diagnosis only): decided after (a) and (b).
 
 ---
 
