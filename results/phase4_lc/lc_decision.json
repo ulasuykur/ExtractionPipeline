@@ -1,0 +1,16 @@
+{
+  "config": "rf__D__logk",
+  "mae_75": 3.985330802390666,
+  "mae_100": 3.874472904500162,
+  "relative_gain_75_to_100": 0.027816485854575596,
+  "step_test_75_to_100": {
+    "mean_diff": -0.11085789789050425,
+    "ci_low": -0.32758376675034606,
+    "ci_high": 0.10586797096933757,
+    "t": -1.0279219901756662,
+    "p": 0.3090341630763948
+  },
+  "plateau": true,
+  "beats_median_at_100": false,
+  "conclusion": "leveled off, but the model does not beat the median baseline: the features lack signal, which more datasets would not fix (\u00a76, additional condition)"
+}

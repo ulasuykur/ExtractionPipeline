@@ -4,23 +4,29 @@ Detailed methodology of the meta-learner that estimates the number of clusters *
 This file is the detailed record; the project docs only reference it
 (decisions: *Design Decisions Log* D11; thesis reasoning: *Thesis Writing Notes* M10).
 
-> **Current status (last updated 2026-09-30)**
+> **Current status (last updated 2026-10-02)**
 > - Evaluation protocol: **frozen** on `master` (Section 2).
 > - Phase 2, static-only baseline: **completed** on `master` (Section 5).
 > - Static and classical meta-feature routes: **closed** (Section 10; branch `feature/proposed-metafeatures`, merged into `master`).
 > - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
->   Next: Phase 4, static + probe features with the frozen protocol.
-> - Learning curve (O1): **postponed**, design fixed (Section 6).
+> - Phase 4, static + probe meta-learner: **completed** (main run, T3, learning curve, post-hoc analysis; 2026-10-01 –
+>   2026-10-02, branch `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9).
+>   Results (Sections 12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
+>   better than the median baseline, and by the §6 rule more datasets would not fix this. Post-hoc analysis (a)+(b)
+>   done (Section 12.13): the probe features carry information about k on the image datasets but not on the tabular
+>   ones. Post-hoc (c): the probes follow k where DEC/IDEC recover the classes as clusters (reading SUPPORTED,
+>   Section 12.13). Next: post-hoc variants on a separate branch (`feature/posthoc-variants`).
+> - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
 > Every development step adds a dated row there and updates this box.
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/` |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py`; post-hoc: `posthoc_probes.py`, `posthoc_cluster_agreement.py`, `slurm/run_posthoc_c.sh` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored); post-hoc: `results/phase4_posthoc/`, `results/phase4_posthoc_c/` (committed) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -44,6 +50,17 @@ This file is the detailed record; the project docs only reference it
 | 2026-09-28 | `feature/phase3-probes` | Pilot run (12 datasets, 3 seeds, RTX 2080; GPU self-test identical to clustpy) and analysis with the committed `analyze_pilot.py`: R1 full grid passes (0.65 h extra on 6 GPUs), 9 of 16 features pass R2a → full run: overcomplete + full T1 grid, 3 seeds (O2 decided). Results in `results/phase3_pilot/` | Section 11.4 |
 | 2026-09-29 | `feature/phase3-probes` | Full run on all 100 datasets started: `slurm/run_full.sh` (any free GPU, pilot datasets rerun); sequential download (`slurm/download_pool.sh`) timed out after 33 of 91 datasets (slow OpenML server, one aborted connection) → parallel download `slurm/download_pool_array.sh` | Section 11.4 |
 | 2026-09-30 | `feature/phase3-probes` | Full run finished: 100/100 datasets. 42 array tasks (pool rows 56, 58–86, 88–99) had stopped immediately without output on worker-minor-1/-3 (node problem); resubmitted unchanged, all completed. `build_probe_features.py` → `data/probe_features.csv` (name + 16 features, no missing values, no true k); run summary in `results/phase3_full/`. Phase 3 completed; branch merged into `master` | Section 11.4 |
+| 2026-10-01 | `feature/phase4-evaluation` | Branch created from `master`. Phase 4 design fixed before any result: screening of the 6 static + 16 probe candidates inside each training part with the §10.1 rule (deviation from §11.3: not on all 100 datasets); six feature sets × Ridge/k-NN/RF, log k only; RF primary; Holm-corrected decision rules for Q1 (2 tests) and Q2 (4 tests); baselines incl. direct probe and T1 estimators; learning curve for the main meta-learner; quotes Q20–Q21 (Ambroise & McLachlan 2002) added | Section 12 |
+| 2026-10-01 | `feature/phase4-evaluation` | `train_phase4.py` added (design of §12). Smoke test in the Claude sandbox with random fake probe features, 1 repeat: sets A/B and the median baseline reproduce the Phase 2 fold scores (max difference 9e-16); the copied screening rule reproduces §10.1 (max 5e-5, rounding). Guard added before any result: a constant candidate fails the screening | Section 12.2 |
+| 2026-10-01 | `feature/phase4-evaluation` | Main Phase 4 run on the user's PC (29.7 min; Phase 2 check passed, max difference 8.9e-16). Probe candidates passed the in-fold screening in 3 of 50 training parts; H1a/H1b not significant (no probe effect); RF D (MAE 3.87) not significantly better than the median (4.11) or the size-only k-NN (3.77), significantly better than the best direct probe (5.30) and classical (9.09) estimators, which are both worse than the median. Results in `results/phase4/` | Section 12.10 |
+| 2026-10-01 | `feature/phase4-evaluation` | `learning_curve.py` (§12.8) and `t3_measures.py` (§12.7) added; details fixed before any of their results (bullets in §12.7–12.8; RRMSE and a tabular/image split added to T3). Smoke tests in the Claude sandbox with random fake probe features passed: the learning curve's 100% point reproduces the (fake) main run (max difference 9e-16); T3 reproduces the main-run MAE | Sections 12.7–12.8 |
+| 2026-10-01 | `feature/phase4-evaluation` | T3 measures (`results/phase4_t3/`; MAE check passed): the MAE ranking holds for all measures; no model beats the training mean on MRAE, best RRMSE 0.985; the constant baselines win on MAPE and exact hits; on the image datasets the models beat the constants mainly through size (Spearman ρ 0.73, probes alone 0.34), on the tabular datasets no model ranks k | Section 12.11 |
+| 2026-10-01 | `feature/phase4-evaluation` | Learning curve (57.8 min; 100% check passed): RF D 4.25 / 4.10 / 3.99 / 3.87 at ≈ 20/40/60/80 training datasets; step 75→100% −0.11 (2.8%, p = 0.31) → leveled off by the §6 rule; the model does not beat the median → "the features lack signal" (§6); descriptively the curve still falls | Section 12.12 |
+| 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) designed after the Phase 4 results (labelled post-hoc, descriptive only): `posthoc_probes.py` added; smoke test with fake probe data passed | Section 12.13 |
+| 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) run (labelled post-hoc, `results/phase4_posthoc/`): no probe feature carries information about k on the 83 tabular datasets (\|ρ\| ≤ 0.15, beyond size ≤ 0.21); on the 17 image datasets several do (ρ 0.45–0.68, also beyond size), and within MNIST / Fashion-MNIST / KMNIST G3_DEC orders k almost perfectly; G1 and L1_DEC are dominated by seed noise | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) designed (labelled post-hoc; uses the labels for diagnosis only): `posthoc_cluster_agreement.py` + `slurm/run_posthoc_c.sh`, reading rule fixed before the run; smoke test with synthetic data and the real row-draw code passed | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c): first cluster run stopped at dataset 27 (Engine1: a rare class absent from the probe rows); class check moved from the probe rows to the loaded dataset, classes in the probe rows recorded; reading rule unchanged; smoke test passed | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) run (cluster, 9.3 min, commit `f4804a4`, checks passed; Engine1 the only dataset with a class missing from its probe rows): median AMI image 0.54 / tabular 0.19 (DEC); probe error falls with AMI for G3_DEC and O1_DEC (ρ −0.34, −0.42) → reading SUPPORTED; raw k-means agrees almost as well as DEC/IDEC | Section 12.13 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -58,6 +75,7 @@ This file is the detailed record; the project docs only reference it
 9. [References and quote verification](#9-references-and-quote-verification)
 10. [New, proposed meta-features](#10-new-proposed-meta-features-branch-featureproposed-metafeatures)
 11. [Phase 3 – DEC/IDEC probe runs](#11-phase-3--decidec-probe-runs-branch-featurephase3-probes)
+12. [Phase 4 – static + probe meta-learner](#12-phase-4--static--probe-meta-learner-branch-featurephase4-evaluation)
 - [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
 
 ---
@@ -401,6 +419,8 @@ be adapted to the result:
   model at 100% beats the median baseline. Otherwise the conclusion is "the features lack
   signal", which more datasets would not fix.
 
+**Run (2026-10-01):** for the Phase 4 main meta-learner, see Section 12.12.
+
 ---
 
 ## 7. Conclusion of Phase 2 and consequences
@@ -495,12 +515,16 @@ the source text; the column says how.
 | Q17 | "Thus it is reasonable to postulate that a partition into k clusters has captured the 'inherent' structure in a dataset if partitions into k clusters obtained from running the clustering algorithm with different subsamples are similar …" | Ben-Hur et al. 2002 / p. 7 / §3, para 1 | no | wording confirmed by the user in the PDF, 2026-09-27 |
 | Q18 | "These examples indicate a simple way for identifying k; choose the value where there is a transition from a score distribution that is concentrated near 1 to a wider distribution." | Ben-Hur et al. 2002 / p. 10 / §4, last para | no | wording confirmed by the user in the PDF, 2026-09-27 |
 | Q19 | "In particular we conclude that stability is not a well-suited tool to determine the number of clusters – it is determined by the symmetries of the data which may be unrelated to clustering parameters." | Ben-David et al. 2006 / first page / Abstract | no | wording confirmed by the user in the PDF, 2026-09-27 |
+| Q20 | "Thus the test set must play no role in the feature-selection process for an unbiased estimate to be obtained." | Ambroise & McLachlan 2002 / p. 6566 / Discussion, left column | no | wording identical in two copies (PMC full text, PDF); confirmed by the user in the PDF, 2026-10-01 |
+| Q21 | "In the present context where feature selection is used in training the prediction rule R from the full training set, the same feature-selection method must be implemented in training the rule on the M − 1 subsets combined at each stage of an (external) cross-validation of R for the selected subset of genes." | Ambroise & McLachlan 2002 / p. 6563 / "Cross-Validation", left column | no | same as Q20 |
 
 **NOT VERIFIED** (as of 2026-09-24): cited without a quote; content and details still to be checked in the papers:
 - Nadeau, C., Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*
   52, 239–281. https://doi.org/10.1023/A:1024068626366
 - Bouckaert, R. R., Frank, E. (2004). Evaluating the replicability of significance tests
   for comparing learning algorithms. *PAKDD 2004*, LNCS 3056, 3–12 (link to be added after checking).
+- Holm, S. (1979). A simple sequentially rejective multiple test procedure. *Scandinavian Journal of
+  Statistics* 6(2), 65–70. https://www.jstor.org/stable/4615733 (added 2026-10-01)
 
 References:
 - Brazdil, P., van Rijn, J. N., Soares, C., Vanschoren, J. (2022). *Metalearning:
@@ -529,6 +553,9 @@ References:
   (open PDF: https://psb.stanford.edu/psb-online/proceedings/psb02/benhur.pdf)
 - Ben-David, S., von Luxburg, U., Pál, D. (2006). A sober look at clustering stability. *COLT 2006*, LNAI 4005.
   https://doi.org/10.1007/11776420_4
+- Ambroise, C., McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray
+  gene-expression data. *PNAS* 99(10), 6562–6566. https://doi.org/10.1073/pnas.102102699
+  (free full text: https://pmc.ncbi.nlm.nih.gov/articles/PMC124442)
 
 ---
 
@@ -791,7 +818,8 @@ the embedding (2,000 points); M11 runtime; M12 adjusted Rand index between the f
 
 The pilot does not add or remove candidates. Features defined after seeing data are marked post-hoc. The choice
 of meta-features is made on all 100 datasets with the screening rule of Sections 10.1–10.2, then confirmed with
-the regressors.
+the regressors. (Changed 2026-10-01, before any Phase 4 result: the screening runs inside each training part,
+Section 12.2.)
 
 **Decision rules:**
 
@@ -897,6 +925,480 @@ overcomplete K), checked by `build_probe_features.py` (it refuses an incomplete 
   contains no true k. Per-seed candidates (with the true k, for analysis only): `results/phase3_full/per_seed.csv`.
 - The features have not been compared with the true k yet. Selection and evaluation follow in Phase 4 with the
   frozen protocol (Section 2), as planned in 11.3.
+
+---
+
+## 12. Phase 4 – static + probe meta-learner (branch `feature/phase4-evaluation`)
+
+Questions (project doc *Development Phase 4*): (1) Do the probe features of Phase 3 improve the meta-learner
+compared with the static-only reference? (2) How does the meta-learner compare with simple baselines that estimate
+k? As in Sections 10–11, everything below was fixed before any Phase 4 result (2026-10-01), and all
+configurations are reported.
+
+### 12.1 Inputs
+
+- `data/metafeatures.csv` (8 static features, target, bookkeeping), joined by `name` with
+  `data/probe_features.csv` (16 probe features, 100/100 datasets, no missing values). P7 is not triggered: every
+  evaluation uses all 100 datasets.
+- Splits: `data/cv_folds.csv`; protocol of Section 2 unchanged (`evaluation.py` unchanged).
+- Direct estimators: the probe features G1–G4, L1, O1, O2 (DEC and IDEC) and the T1 raw-space estimators from
+  `results/t1_classical/candidates.csv` (best k by silhouette, Calinski–Harabasz, Davies–Bouldin, mixture BIC;
+  100 rows, no true k).
+
+### 12.2 Feature screening inside the training parts (deviation from Section 11.3)
+
+Section 11.3 and D12 planned to select the probe features on all 100 datasets. Changed before any Phase 4 result:
+in Section 10 the full-pool screening was harmless because no candidate passed; here the true k of the test
+datasets would help choose the features, and the test scores would be too optimistic (Q20–Q21; same reason as
+nested tuning, Section 2.5, Q6–Q7). The screening is therefore part of training:
+
+- In each of the 50 outer training parts (≈ 80 datasets), every candidate is screened with the rule of
+  Section 10.1, unchanged: partial Spearman ρ with k after removing log n and log p (`partial_spearman`, as in
+  `experiments/pymfe_screen/screen_pool.py`); a candidate passes if |ρ| ≥ 0.30 on all training datasets and
+  ≥ 0.20 on the tabular training datasets, with the same sign. Only the training datasets' true k and the
+  label-free `source` column are used.
+- Candidates: the 6 static distribution features (`skew_mean`, `skew_sd`, `kurt_min`, `kurt_q3`, `cor_mean`,
+  `conc_mean`) and/or the 16 probe features, depending on the feature set (12.3). `log_n` and `log_p` are always
+  included (the rule measures information *beyond* size).
+- If no candidate passes, the model uses `log_n` + `log_p` only.
+- A candidate that is constant in the training part (or in its tabular part) fails (added before any result, after
+  the smoke test: its rank residuals would otherwise be floating-point noise and give a random ρ).
+- The screening runs once per outer training part, before tuning; the inner tuning CV (Section 2.5) then uses the
+  selected columns. It is not repeated inside the inner folds; this affects only the hyperparameter choice, never
+  the test part.
+- The selected features are saved per fold.
+- Spearman uses ranks, so the result is the same for k and log k and is not affected by the transforms in 12.4.
+
+### 12.3 Configurations
+
+| set | inputs | role |
+|---|---|---|
+| A | static 8 | Phase 2 reference (rerun) |
+| B | `log_n` + `log_p` | Phase 2 size-only model (added after the exploration, Section 4) |
+| C | `log_n` + `log_p` + screened static 6 | static-only with the screening rule |
+| D | `log_n` + `log_p` + screened (static 6 + probe 16) | **main meta-learner** |
+| E | static 8 + probe 16, no screening | robustness: does the result depend on the screening? |
+| F | probe 16, no screening | do the probe features carry signal on their own? |
+
+Models: Ridge, k-NN, Random Forest with the grids of Section 2.5. Target: log k only (all raw-k configurations of
+Phase 2 were worse than the baseline, Section 5.2, finding 1). 18 configurations + median baseline.
+Built-in check: sets A and B must reproduce the Phase 2 fold scores (`results/phase2/fold_scores.csv`); if any
+fold MAE differs by more than 1e-9, the run is marked invalid and `results/phase4/` is not written. If no static
+candidate passes in a fold, C is identical to B in that fold.
+
+### 12.4 Transforms
+
+- Static features: as Section 3.1 (signed log for skewness and kurtosis columns).
+- Probe features: log for G1–G4, L1, O1, O2 (values on the k scale, ≥ 1 by construction); signed log for O3
+  (can be negative). Parameter-free, so no leakage; Random Forest and the screening (ranks) are unaffected.
+- Scaling: as Section 3.2.
+
+### 12.5 Baselines
+
+1. **Median baseline** (Section 2.6). It also covers "fixed k" from the proposal (Q8): the median is the best
+   constant prediction for MAE.
+2. **Size-only k-NN:** set B, k-NN, log k (the proposal's "heuristics based on dataset size/dimension", Q8).
+3. **Direct probe estimators:** G1–G4, L1, O1, O2 for DEC and IDEC (14), used directly as the estimate of k
+   (clipped at 2, same metrics, no training). O3 is excluded (number of emptied clusters, not an estimate of k).
+   *Best direct probe estimator:* in each training part, the one of the 14 with the lowest MAE on the training
+   datasets (tie: first in the order above) is applied to the test part.
+4. **Classical raw-space estimators** (T1, Section 10.2; the proposal's "classical internal metrics"): the 4
+   estimators, scored the same way; *best classical estimator* chosen as in 3.
+
+### 12.6 Decision rules
+
+- **Primary model: Random Forest.** Of the three models it copes best with many and irrelevant inputs, needs no
+  scaling, and is unaffected by monotone transforms; with all 8 static features it was the best of the three in
+  Phase 2 (Section 5.1). Ridge and k-NN are reported as secondary.
+- **Question 1** (corrected t-test, Section 2.7; Holm correction over 2 tests, α = 0.05):
+  - H1a: RF D vs. RF C – the probe effect (same procedure; the only difference is whether the probe candidates are
+    offered). "The probe features improve the meta-learner" is claimed only if H1a is significant after Holm,
+    with ΔMAE < 0.
+  - H1b: RF D vs. RF A – the Phase 4 meta-learner against the frozen Phase 2 reference.
+  - Reading: H1b significant without H1a = the gain comes from screening out the static features, not from the
+    probes.
+- **Question 2** (Holm over 4 tests): RF D vs. (1) median baseline, (2) size-only k-NN, (3) best direct probe
+  estimator, (4) best classical estimator. "Better than baseline X" only if significant after Holm with
+  ΔMAE < 0; otherwise "not significantly different" (not "equal").
+- **All other comparisons** (Ridge, k-NN, sets E and F, single direct estimators, every configuration vs. the
+  median): uncorrected p-values, labelled secondary.
+- Reminder: with this protocol a difference of ≈ 0.32 MAE is needed to be detectable (Section 2.7).
+
+### 12.7 Secondary analyses (reported, not used for decisions)
+
+- Breakdown per k-bin and tabular vs. image (Section 2.6), including the share of each model's gain over the median
+  baseline that comes from the image datasets (Phase 2: 87%, Section 5.2).
+- How often each candidate is selected over the 50 training parts (sets C and D).
+- Additional error measures T3 (project doc *Ideas – To Be Tested*), from the saved predictions.
+- Descriptive screening on all 100 datasets (rule of Section 10.1) for each of the 22 candidates, for
+  interpretation only.
+- T3 details (`t3_measures.py`, fixed 2026-10-01 before any T3 result): RMSE, mean absolute log error, MAPE, MRAE,
+  RRMSE, median absolute error, exact hits (rounded prediction) and Spearman ρ per test part. MAPE, MRAE and RRMSE as
+  defined by Pimentel & de Carvalho (2020, §5.5, Eqs. 7–9, p. 5); MRAE and RRMSE are relative to the mean k of the
+  training part. RRMSE was added to the T3 list because Q11 names MAPE, MRAE and RRMSE. Constant baselines that are
+  best for a measure, computed on the training part: mean k, 1/k-weighted median (MAPE), most frequent k (exact
+  hits). All measures are also split by source (tabular / image; user request), pooled over the test predictions of
+  each repeat because a test part holds only 0–5 image datasets. Built-in check: the recomputed MAE equals
+  `results/phase4/summary.csv`. Reported only.
+
+### 12.8 Learning curve (O1)
+
+Run for RF D only, after the main run, with the design of Section 6 unchanged (test folds as in Section 2;
+training part subsampled by group, stratified by k-bin, to 25/50/75/100%, 5 draws; plateau rule and additional
+condition). Screening (12.2) and tuning are redone on every subsampled training part. If time runs short, this
+step is dropped first and reported as not done.
+
+- Implementation (`learning_curve.py`, fixed 2026-10-01 before any learning-curve result): the quarters come from
+  `StratifiedGroupKFold(4)` on the training part with the protocol's 6 k-bins (as in
+  `experiments/phase2_exploration/e6_lc_noise.py`, which used the 5 pool brackets); seed 1000·repeat + 10·fold +
+  draw; the 100% point is computed once per fold and must reproduce the main run (max difference ≤ 1e-9, otherwise
+  `results/phase4_lc/` is not written); the median baseline is refitted on every subsample for comparison; the
+  75 → 100% step test is the corrected t-test (Section 2.7) with the size of the full training part. Outputs:
+  `results/phase4_lc/`.
+
+### 12.9 Implementation
+
+- New `train_phase4.py`: reads both tables and the folds through `evaluation.py` (unchanged); reuses the model
+  definitions and grids of `train_static.py` (unchanged, so Phase 2 stays reproducible); writes `outputs/phase4/`,
+  and `results/phase4/` only after a full, valid run.
+- Runs on the user's PC (CPU only).
+
+### 12.10 Results of the main run (2026-10-01)
+
+**Run.** `python train_phase4.py` on the user's PC (29.7 min), code as committed. Both built-in checks passed: the
+copied screening rule reproduces §10.1 (max difference 5e-5, rounding), and sets A and B and the median baseline
+reproduce the Phase 2 fold scores (max difference 8.9e-16, `phase2_check.csv`). Fingerprints (line endings
+normalized): `metafeatures.csv` `d99f3eca…` (the same file as `ab77ee3d…` in §8, which was computed on the raw
+Windows bytes), `probe_features.csv` `b2ee5e5f…`, `results/t1_classical/candidates.csv` `970a5556…`,
+`cv_folds.csv` `721afc6e…`. Outputs: `results/phase4/`; per-dataset predictions in `outputs/phase4/predictions.csv`
+(git-ignored; the run is deterministic).
+
+**Screening (12.2).** In 47 of the 50 training parts no candidate passed, so set D used only `log_n` + `log_p`
+(i.e. set B). G3_DEC passed in 2 training parts (ρ beyond size 0.355 and 0.343), O3_IDEC in 1 (0.339). No static
+candidate passed in any training part, so set C is identical to set B. Median ρ beyond size over the 50 training
+parts: G3_DEC 0.23, O3_IDEC 0.19, all other candidates between −0.14 and 0.11 (`selection_frequency.csv`).
+Descriptive, on all 100 datasets: no candidate would pass (largest: G3_DEC 0.22, tabular 0.14; O3_IDEC 0.20,
+tabular 0.21; `screen_all100.csv`).
+
+**Meta-learners.** MAE (mean over 10 repeats), with Δ vs. the median baseline and the uncorrected p-value of the
+corrected t-test in brackets. Median baseline: 4.112 ± 0.010, within ±1 36.0%.
+
+| set | Ridge | k-NN | Random Forest |
+|---|---|---|---|
+| A static 8 | 4.111 (−0.00; 0.98) | 4.123 (+0.01; 0.93) | 4.037 (−0.08; 0.37) |
+| B `log_n` + `log_p` | 4.022 (−0.09; 0.21) | 3.767 (−0.35; 0.018) | 3.844 (−0.27; 0.09) |
+| C size + screened static | = B | = B | = B |
+| D size + screened static & probe | 4.045 (−0.07; 0.46) | 3.778 (−0.33; 0.026) | **3.874 (−0.24; 0.15)** |
+| E static 8 + probe 16, unscreened | 4.097 (−0.02; 0.79) | 4.152 (+0.04; 0.62) | 4.094 (−0.02; 0.87) |
+| F probe 16, unscreened | 4.121 (+0.01; 0.92) | 4.237 (+0.13; 0.62) | 4.157 (+0.05; 0.76) |
+
+Within ±1: RF D 36.9%, k-NN D 38.5%, Ridge D 33.7%; sets E and F 29–32%. Standard deviations over the repeats:
+`summary.csv`.
+
+**Pre-registered tests (12.6).** ΔMAE = RF D minus the comparison (negative = RF D better); corrected t-test.
+
+| family | test | ΔMAE [95% interval] | p | p (Holm) | improvement claimed? |
+|---|---|---|---|---|---|
+| Q1 | H1a: RF D vs. RF C (probe effect) | +0.030 [−0.116, +0.176] | 0.682 | 0.682 | no |
+| Q1 | H1b: RF D vs. RF A (Phase 2 reference) | −0.163 [−0.446, +0.120] | 0.254 | 0.508 | no |
+| Q2 | RF D vs. median baseline | −0.238 [−0.568, +0.092] | 0.153 | 0.307 | no |
+| Q2 | RF D vs. size-only k-NN (set B) | +0.107 [−0.162, +0.377] | 0.428 | 0.428 | no |
+| Q2 | RF D vs. best direct probe estimator | −1.428 [−2.466, −0.389] | 0.008 | 0.024 | yes |
+| Q2 | RF D vs. best classical estimator (T1) | −5.211 [−7.413, −3.009] | < 0.001 | < 0.001 | yes |
+
+**Direct estimators (12.5).** Every direct estimator is worse than the median baseline. Probe estimators: L1_DEC
+4.69, G1_DEC 4.80 (DEC's G-ratio rule, Q14–Q15, applied as a fixed rule), L1_IDEC 4.93, G1_IDEC 5.10, G2 5.28–5.58,
+G3 6.67–12.96, G4 8.38–9.00, and the number of clusters in use at K = 50 (O1, O2) 16.0–25.7 (DEC and IDEC keep far
+more clusters in use than there are classes). The "best direct probe estimator" chosen on the training part was
+L1_DEC in 35, L1_IDEC in 13 and G1_DEC in 2 of the 50 folds (MAE 5.30). Its higher share within ±1 (42% vs. 36%)
+comes from small k: L1 almost always returns k ≈ 2 (L1_DEC within ±1: 100% for k = 2 and k = 3, at most 19%
+above). Classical estimators (T1): Calinski–Harabasz 7.81, silhouette 8.04, Davies–Bouldin 17.47, mixture BIC
+32.82; the best one chosen on the training part was Calinski–Harabasz in 33 and silhouette in 17 folds (MAE 9.09).
+
+**Secondary comparisons (uncorrected).** D vs. C: Ridge +0.02, k-NN +0.01 (p ≥ 0.63). D vs. A: Ridge −0.07
+(p = 0.34), k-NN −0.35 (p = 0.08). E vs. A (all 24 features unscreened vs. static 8): RF +0.06, k-NN +0.03,
+Ridge −0.01 (p ≥ 0.58).
+
+**Where the errors and gains are** (MAE pooled over the repeats; `breakdown.csv`, `gain_share.csv`):
+
+| subgroup (datasets) | median baseline | k-NN B | RF D | RF E | RF F | best direct probe |
+|---|---|---|---|---|---|---|
+| k = 2 (26) | 2.06 | 2.44 | 2.76 | 2.83 | 2.89 | 1.38 |
+| k = 3 (15) | 1.06 | 1.21 | 1.34 | 1.67 | 1.72 | 1.16 |
+| k = 4–5 (21) | 0.52 | 0.94 | 1.07 | 0.92 | 0.92 | 2.44 |
+| k = 6–9 (14) | 3.08 | 2.07 | 2.07 | 2.72 | 2.91 | 6.77 |
+| k = 10–19 (18) | 6.16 | 4.59 | 4.42 | 4.72 | 4.80 | 8.01 |
+| k = 20–50 (6) | 29.45 | 27.32 | 27.38 | 28.06 | 28.03 | 31.10 |
+| tabular (83) | 3.49 | 3.43 | 3.52 | 3.61 | 3.65 | 4.72 |
+| image (17) | 7.16 | 5.40 | 5.59 | 6.48 | 6.65 | 8.15 |
+
+Gain over the median baseline (summed absolute error over the datasets, per repeat): RF D +23.8, of which images
++26.8 and tabular −3.0; k-NN D +33.4 (images 88%); k-NN B +34.5 (images 87%, as in Phase 2, §5.2).
+
+![MAE and within ±1 of all Phase 4 configurations vs. the median baseline](../results/phase4/fig_scores.png)
+
+![Predicted vs. true k per dataset, sets A, C and D](../results/phase4/fig_pred_vs_true.png)
+
+**Findings.**
+1. **The probe features do not improve the meta-learner (Q1).** Under the in-fold screening they are almost never
+   selected (3 of 50 training parts), so the main meta-learner is in effect the size-only model. Offered without
+   screening (E) or on their own (F), they make every model worse than size only and no better than the median.
+2. **The main meta-learner is not significantly better than the median baseline (Q2)** and not different from the
+   size-only k-NN of Phase 2. As in Phase 2, its gain comes from the image datasets; on the tabular datasets it is
+   slightly worse than the median.
+3. **It is significantly better than the best direct probe estimator and the best classical estimator**, but only
+   because every direct estimator is itself worse than the constant median. DEC's G-ratio rule (G1), applied as a
+   fixed rule, does not recover the class count in this pool.
+4. **The pilot's sanity check did not carry over to the pool.** 9 of 16 features ordered the MNIST family
+   correctly (R2a, §11.4); on the heterogeneous pool none carries information beyond size. This was anticipated in
+   §11.3 (R2a is "not evidence that the meta-learner improves").
+
+**Not concluded here.** Why the probes fail is not tested by this run (next: a post-hoc analysis, labelled as
+such). The result holds for the probe design of §11 (DEC and IDEC, 500 probe steps, one fixed network, 3 seeds)
+and for this pool.
+
+**Next steps (user, 2026-10-01).** Learning curve (12.8), additional error measures T3, post-hoc analysis of why
+the probes fail; then possible changes to the setup on a separate branch.
+
+### 12.11 Additional error measures T3 (2026-10-01; reported only)
+
+**Run.** `python t3_measures.py` on the user's PC, from `outputs/phase4/predictions.csv` (fingerprint `e0a4332d…`).
+Built-in check passed: the recomputed MAE equals `results/phase4/summary.csv` (max difference 4.8e-5, rounding of the
+saved table). MRAE: no test dataset had k equal to its training mean, so no value was excluded. Outputs:
+`results/phase4_t3/` (`t3_summary.csv`, `t3_by_source.csv`, `t3_fold_scores.csv`).
+
+**All 100 datasets** (mean over the 10 repeats). Lower is better, except exact hits and Spearman ρ. MRAE and RRMSE
+below 1 = better than always predicting the mean k of the training part (the "average" baseline of Pimentel &
+de Carvalho 2020, §5.5).
+
+| configuration | MAE | RMSE | abs. log error | MAPE | MRAE | RRMSE | median abs. error | exact hits | Spearman ρ |
+|---|---|---|---|---|---|---|---|---|---|
+| median baseline | 4.112 | 7.883 | 0.622 | 0.563 | 2.054 | 1.055 | 2.060 | 11.0% | – |
+| mean baseline | 4.646 | 7.462 | 0.713 | 1.044 | 1.000 | 1.000 | 3.502 | 4.1% | – |
+| 1/k-weighted median | 4.280 | 8.308 | 0.671 | 0.459 | 2.641 | 1.118 | 1.340 | 15.0% | – |
+| most frequent k | 4.760 | 8.815 | 0.866 | 0.466 | 3.283 | 1.193 | 2.340 | 26.0% | – |
+| k-NN B (size only) | 3.767 | 7.287 | 0.567 | 0.588 | 1.912 | 0.985 | 2.029 | 15.5% | 0.22 |
+| RF A (static 8) | 4.037 | 7.500 | 0.611 | 0.668 | 1.655 | 1.006 | 2.473 | 13.0% | 0.14 |
+| RF D (main) | 3.874 | 7.348 | 0.586 | 0.643 | 1.800 | 0.990 | 2.084 | 14.2% | 0.20 |
+| RF E (all 24, unscreened) | 4.094 | 7.524 | 0.619 | 0.678 | 1.867 | 1.008 | 2.531 | 8.9% | 0.14 |
+| RF F (probe 16) | 4.157 | 7.565 | 0.626 | 0.693 | 2.057 | 1.013 | 2.450 | 9.5% | 0.18 |
+| best direct probe estimator | 5.302 | 9.822 | 0.845 | 0.680 | 6.171 | 1.353 | 2.380 | 18.7% | 0.05 |
+| best classical estimator | 9.085 | 15.797 | 1.019 | 1.768 | 10.767 | 2.257 | 3.410 | 18.7% | −0.02 |
+
+Spearman ρ is computed per test part and averaged; it is undefined for constant predictions.
+
+**Split by source** (pooled over the test predictions of each repeat, mean over the 10 repeats; `t3_by_source.csv`):
+
+| configuration | tabular (83): MAE | RRMSE | Spearman ρ | image (17): MAE | RRMSE | Spearman ρ |
+|---|---|---|---|---|---|---|
+| median baseline | 3.487 | 1.043 | – | 7.165 | 1.075 | – |
+| k-NN B (size only) | 3.433 | 0.986 | 0.06 | 5.399 | 0.947 | 0.73 |
+| RF D (main) | 3.523 | 0.989 | 0.10 | 5.588 | 0.968 | 0.48 |
+| RF E (all 24, unscreened) | 3.606 | 1.030 | −0.03 | 6.475 | 0.981 | 0.45 |
+| RF F (probe 16) | 3.647 | 1.040 | 0.03 | 6.646 | 0.984 | 0.34 |
+| best direct probe estimator | 4.719 | 1.418 | 0.06 | 8.147 | 1.143 | −0.05 |
+
+**Findings.**
+1. The ranking by MAE holds for the other measures: the size-only k-NN is best on RMSE, absolute log error and
+   RRMSE; the probe sets E and F are close to the constant baselines.
+2. Against the "average" baseline, no model wins on MRAE (all above 1), and the best RRMSE is 0.985, i.e. 1.5% better
+   than always predicting the training mean. This is the pattern Pimentel & de Carvalho report for some of their
+   targets (Q11).
+3. On MAPE and exact hits, the constant baselines win (1/k-weighted median: MAPE 0.46; "always the most frequent k",
+   i.e. k = 2: 26% exact hits), because the meta-learners over-predict small k.
+4. Tabular vs. image (descriptive): on the tabular datasets no model ranks the datasets by k (ρ between −0.03 and
+   0.10) and none is clearly better than the median. On the image datasets the models are better than every constant
+   baseline, but mainly through size (size-only k-NN: ρ 0.73); the probe features alone reach ρ 0.34 and MAE 6.65
+   (median 7.17), and adding them to the static features (E) is worse than size alone. Caveat: 17 image datasets
+   from 8 sources with 6 distinct k values, 9 of them class-subset variants of the MNIST family.
+
+### 12.12 Learning curve (O1) (2026-10-01)
+
+**Run.** `python learning_curve.py` on the user's PC (57.8 min), code as committed. Built-in check passed: the 100%
+point reproduces the main run (max difference 8.9e-16, `lc_check.csv`). Outputs: `results/phase4_lc/`.
+
+| training datasets | RF D: MAE | RF D: within ±1 | median baseline: MAE |
+|---|---|---|---|
+| ≈ 20 (25%) | 4.247 ± 0.089 | 31.9% | 4.129 |
+| ≈ 40 (50%) | 4.096 ± 0.049 | 33.7% | 4.127 |
+| ≈ 60 (75%) | 3.985 ± 0.065 | 36.0% | 4.123 |
+| 80 (100%) | 3.874 ± 0.107 | 36.9% | 4.112 |
+
+Mean ± sd over the 10 repeats (the 5 draws per fold averaged first).
+
+![Learning curve of the main meta-learner (RF, set D) and the median baseline](../results/phase4_lc/fig_learning_curve.png)
+
+**§6 decision (as fixed).** Step 75% → 100%: ΔMAE −0.111 [−0.328, +0.106], p = 0.31 (corrected t-test), relative gain
+2.8% (< 5%). By the plateau rule the curve has leveled off. The additional condition is not met: RF D does not beat
+the median baseline (§12.10, Holm p = 0.31). Pre-registered conclusion: **the features lack signal, which more
+datasets would not fix.**
+
+**Descriptive reading (not a decision).** The curve still falls steadily, by 0.15, 0.11 and 0.11 MAE per additional
+≈ 20 training datasets, and the 100% point is better than the 75% point in all 10 repeats. The last step is smaller
+than what the protocol can detect (≈ 0.32, §2.7). A small further gain from more datasets is therefore not excluded;
+given §12.10–12.11, it would most likely come from the size signal on the image datasets, not from the probe
+features. With ≈ 20 training datasets the model is worse than the median (+0.12 MAE); it overtakes the median between
+≈ 20 and ≈ 40.
+
+**Consequence for O1.** For the Phase 4 setup, the learning curve gives no evidence that a larger pool would make the
+probe features useful. Enlarging the pool would be a change to the setup (post-hoc, on a separate branch).
+
+### 12.13 Post-hoc analysis: why the probe features fail (designed 2026-10-01, after the results of 12.10–12.12)
+
+**Labelled post-hoc:** designed after the Phase 4 results were known; descriptive only, no model is trained and no
+claim of the thesis rests on it.
+
+- (a) Where the probe features carry information: Spearman ρ with k on all / tabular / image datasets; the same
+  beyond size (partial Spearman, §10.1); within each image family whose variants differ only in k (MNIST,
+  Fashion-MNIST, KMNIST) and their mean; ρ with log n and log p; ρ on the datasets whose probe k range was not
+  capped (n_train ≥ 250). Within the families, the probes saw the same number of rows (≤ 5,000), but log n differs
+  (the k = 10 original is the full dataset), so the within-family check is clean for the probe features only.
+- (b) Seed noise: Spearman ρ between seed pairs across the 100 datasets, ρ with k per single seed, and the noise
+  share (mean sd across seeds / sd of the seed average across datasets). G4 has no per-seed value.
+- Script `posthoc_probes.py` (no GPU, seconds); outputs `results/phase4_posthoc/`.
+- (c) Cluster–class agreement (designed 2026-10-02 before its run; uses the true labels, diagnosis only, never a
+  meta-feature): no new DC runs. The saved final cluster labels of the Phase 3 probe runs (500 steps) are compared
+  with the true classes of the same rows, reconstructed with the probes' own label-free row draw
+  (`probes.split_and_scale`). Per dataset: AMI and ARI at k_ref (the grid k closest to the true k on the log scale)
+  for DEC and IDEC, mean over the 3 seeds; the best AMI over the grid; k-means on the same scaled rows at k_ref and at
+  the true k as a reference without deep clustering. Summary by data type and image family; Spearman ρ between the
+  AMI and the error |log feature − log k| of G3_DEC, O1_DEC and L1_IDEC. Reading (fixed before the run): the
+  hypothesis "the probes track k where DEC/IDEC recover the classes as clusters" is SUPPORTED if (1) the median AMI on
+  the image datasets exceeds that on the tabular datasets by at least 0.20, for DEC and for IDEC, and (2) ρ ≤ −0.30
+  for at least 2 of the 3 features; NOT SUPPORTED if neither holds; PARTLY SUPPORTED otherwise. Built-in checks: the
+  reconstructed rows match the saved labels and `per_seed.csv`, and the number of classes equals k_true. Script
+  `posthoc_cluster_agreement.py`, cluster job `slurm/run_posthoc_c.sh` (CPU only); outputs
+  `results/phase4_posthoc_c/`.
+  *Deviation (2026-10-02, after the first run stopped at dataset 27 of 100):* the class check was applied to the
+  probe rows, but the label-free row draw (10% held out, at most 5,000 rows) can leave out every row of a very rare
+  class (Engine1: k_true 3, only 2 classes in its 345 probe rows). The check now requires k_true classes in the
+  loaded dataset, which verifies the reconstruction; the number of classes in the probe rows is recorded per dataset
+  (`classes_in_probe_rows`) and reported, and AMI/ARI compare with the classes present in the probe rows. The reading
+  rule is unchanged. The AMI values of the first 26 datasets had been printed before this change.
+
+**Results (a) and (b) (2026-10-01; `results/phase4_posthoc/`).** `python posthoc_probes.py` on the user's PC
+(seconds). Image families: MNIST (`img_554`), Fashion-MNIST (`img_40996`), Kuzushiji-MNIST (`img_41982`), each with
+k = 2, 3, 5, 10. 88 datasets have an uncapped probe k range.
+
+(a) Spearman ρ with the true k (`feature_signal.csv`; "–" = constant within the family):
+
+| feature | all 100 | tabular (83) | image (17) | image, beyond size | MNIST / F-MNIST / KMNIST |
+|---|---|---|---|---|---|
+| G1_DEC | −0.08 | −0.03 | −0.16 | −0.34 | −0.60 / 0.32 / −0.32 |
+| G1_IDEC | 0.14 | 0.03 | 0.57 | 0.57 | 0.40 / 0.20 / 1.00 |
+| G2_DEC | −0.15 | −0.12 | −0.21 | −0.10 | −0.26 / – / – |
+| G2_IDEC | 0.13 | 0.06 | 0.45 | 0.53 | 0.63 / 0.40 / −0.80 |
+| G3_DEC | 0.25 | 0.15 | 0.52 | 0.54 | 0.95 / 1.00 / 1.00 |
+| G3_IDEC | 0.17 | 0.11 | 0.57 | 0.53 | 0.80 / 0.74 / 0.00 |
+| G4_DEC | 0.07 | 0.12 | −0.08 | −0.31 | −0.63 / 0.77 / 0.11 |
+| G4_IDEC | 0.06 | 0.11 | −0.06 | −0.35 | 0.63 / 0.77 / −0.26 |
+| L1_DEC | 0.07 | 0.12 | −0.05 | 0.05 | – / – / 0.26 |
+| L1_IDEC | 0.16 | 0.04 | 0.68 | 0.66 | 1.00 / 0.80 / 1.00 |
+| O1_DEC | 0.13 | 0.05 | 0.51 | 0.50 | 1.00 / 0.80 / 0.80 |
+| O1_IDEC | 0.12 | 0.04 | 0.59 | 0.62 | 1.00 / 0.40 / −0.40 |
+| O2_DEC | 0.13 | 0.04 | 0.49 | 0.46 | 1.00 / 0.80 / 0.80 |
+| O2_IDEC | 0.15 | 0.09 | 0.54 | 0.54 | 0.80 / −0.80 / 0.40 |
+| O3_DEC | −0.02 | −0.03 | −0.26 | −0.31 | −0.32 / −0.80 / −0.40 |
+| O3_IDEC | 0.06 | 0.07 | 0.18 | 0.17 | 1.00 / −0.21 / 0.60 |
+| *log n (reference)* | *0.22* | *0.12* | *0.55* | – | *0.63 each (k = 10 original is the full dataset)* |
+
+Beyond size on the tabular datasets: at most 0.21 (O3_IDEC); G3_DEC 0.14. On the 88 uncapped datasets the values
+are the same as on all 100 (largest: G3_DEC 0.26).
+
+(b) Seed agreement over the 100 datasets (`seed_agreement.csv`):
+
+| feature | seed-pair ρ: mean (min) | noise share | ρ with k, single seeds |
+|---|---|---|---|
+| G1_DEC | 0.27 (0.17) | 0.85 | −0.11 … 0.02 |
+| G1_IDEC | 0.26 (0.16) | 0.86 | −0.03 … 0.20 |
+| G2_DEC | 0.58 (0.54) | 0.08 | −0.15 … −0.10 |
+| G2_IDEC | 0.62 (0.58) | 0.18 | 0.09 … 0.19 |
+| G3_DEC | 0.81 (0.79) | 0.39 | 0.18 … 0.31 |
+| G3_IDEC | 0.90 (0.89) | 0.21 | 0.13 … 0.17 |
+| L1_DEC | 0.25 (0.13) | 0.61 | −0.04 … 0.07 |
+| L1_IDEC | 0.83 (0.82) | 0.16 | 0.18 … 0.23 |
+| O1_DEC | 0.90 (0.88) | 0.24 | 0.10 … 0.14 |
+| O1_IDEC | 0.95 (0.94) | 0.18 | 0.09 … 0.14 |
+| O2_DEC | 0.93 (0.92) | 0.19 | 0.13 … 0.14 |
+| O2_IDEC | 0.97 (0.97) | 0.14 | 0.13 … 0.16 |
+| O3_DEC | 0.93 (0.92) | 0.22 | −0.04 … 0.01 |
+| O3_IDEC | 0.77 (0.75) | 0.29 | 0.02 … 0.05 |
+
+![POST-HOC: Spearman ρ of each feature with the true k, by source](../results/phase4_posthoc/fig_signal_by_source.png)
+
+**Findings (descriptive).**
+1. **Tabular:** no probe feature carries information about k (|ρ| ≤ 0.15; beyond size ≤ 0.21).
+2. **Image:** several probe features do (G1_IDEC, G2_IDEC, G3, L1_IDEC, O1, O2: ρ 0.45–0.68, beyond size
+   0.46–0.66). Within the three families, G3_DEC orders k almost perfectly (0.95 / 1.00 / 1.00), and L1_IDEC, O1_DEC
+   and O2_DEC reach ≥ 0.8 in all three. The pilot's R2a result therefore holds on all three families.
+3. **Dilution:** across all 100 datasets the 83 tabular datasets dilute the signal (ρ ≤ 0.25). This is why no
+   candidate passed the in-fold screening (which by design also requires ρ ≥ 0.20 on the tabular datasets, §10.1)
+   and why the unscreened models (E, F) did not gain.
+4. **Seed noise:** G1 (both algorithms) and L1_DEC are dominated by seed noise (seed agreement 0.13–0.27, noise share
+   0.61–0.86). G3, O1, O2, O3 and L1_IDEC are stable (0.75–0.97), yet carry no information on the tabular datasets,
+   so seed noise is not the main reason.
+5. **Capping** of the probe k range on small datasets is not the reason.
+
+**Interpretation (hypothesis, not tested).** The probe features track k where DEC/IDEC can recover the classes as
+clusters (MNIST-type images), not where they cannot (tabular data). Test: (c).
+
+**Caveats.** Post-hoc; 12 of the 17 image datasets come from three families; each within-family ρ rests on 4
+datasets (one swapped pair gives 0.8); MNIST is DEC's own benchmark; G1, DEC's own rule for choosing k, is
+dominated by seed noise with 3 seeds.
+
+**Results (c) (2026-10-02; `results/phase4_posthoc_c/`).** `slurm/run_posthoc_c.sh` on the cluster (worker-minor-4,
+CPU, 9.3 min), commit `f4804a4` (with the deviation above). Built-in checks passed for all 100 datasets; Engine1 is the
+only dataset with a class missing from its probe rows (2 of 3). k_ref equals the true k for 86 datasets. Fingerprints:
+`probe_features.csv` `b2ee5e5f…` (as in §12.10), `per_seed.csv` `f029d2a6…`, `pool.csv` `9eb9fcdb…`.
+
+AMI with the classes at k_ref (0 = chance, 1 = classes recovered exactly); median [quartiles]; DEC/IDEC: mean over the
+3 seeds (`summary.json`):
+
+| | DEC | IDEC | k-means on the raw rows (no DC) | DEC, best k of the grid |
+|---|---|---|---|---|
+| image (17) | 0.54 [0.42, 0.65] | 0.50 [0.36, 0.62] | 0.50 [0.33, 0.59] | 0.58 [0.52, 0.76] |
+| tabular (83) | 0.19 [0.03, 0.35] | 0.18 [0.03, 0.34] | 0.17 [0.03, 0.34] | 0.27 [0.06, 0.44] |
+
+Spearman ρ between the AMI and the probe error |log feature − log k| (negative = the probe is closer to k where the
+clusters match the classes):
+
+| feature (AMI of) | all 100 | tabular 83 | image 17* |
+|---|---|---|---|
+| G3_DEC (DEC) | −0.34 | −0.45 | −0.19 |
+| O1_DEC (DEC) | −0.42 | −0.50 | −0.05 |
+| L1_IDEC (IDEC) | +0.03 | +0.15 | −0.49 |
+
+\*Computed afterwards from `agreement_per_dataset.csv` and `data/probe_features.csv` (descriptive, not part of the
+reading rule).
+
+**Reading (as fixed):** (1) median gap image − tabular 0.35 (DEC) and 0.32 (IDEC), both ≥ 0.20; (2) ρ ≤ −0.30 for
+G3_DEC and O1_DEC (2 of 3) → **SUPPORTED**.
+
+![POST-HOC (c): cluster–class agreement and probe error](../results/phase4_posthoc_c/fig_cluster_agreement.png)
+
+**Findings (descriptive).**
+1. DEC/IDEC recover the classes as clusters far better on the image datasets than on the tabular ones. On the tabular
+   datasets the agreement is near chance (AMI < 0.1) for 37% and above 0.5 for 14% (e.g. texture 0.77, isolet 0.72,
+   seeds 0.70, har 0.68, Iris 0.66). Image exceptions: CIFAR-10 (0.10) and Kuzushiji-MNIST_k2 (0.04).
+2. Where DEC finds the classes, G3_DEC and O1_DEC are closer to the true k, also within the tabular datasets, so the
+   relation is not only the image/tabular difference. Within the 17 image datasets it is weak; L1_IDEC shows no
+   relation overall.
+3. Closer, but not close: the probes over-estimate k even where the classes are recovered. On the 22 datasets with DEC
+   AMI ≥ 0.5 the median G3_DEC is 1.6× and O1_DEC 3.2× the true k (32 datasets with AMI < 0.1: 3.4× and 8.5×);
+   Fashion-MNIST_k2 has AMI 1.00, G3_DEC 11 and O1_DEC 20. The signal is in the ordering, not in the level, which fits
+   the direct probe estimators being worse than the median (§12.10).
+4. Deep clustering adds little over k-means at the same k: on the image datasets DEC is above raw k-means in 15 of 17
+   (median +0.07 AMI), on the tabular datasets there is no difference (median −0.00; DEC higher in 36 of 83). After
+   500 probe steps, the class structure that the probes read is largely present in the scaled data already.
+5. Seed variation of the AMI is small (median spread over the 3 seeds 0.03–0.04).
+
+**Interpretation.** Consistent with the hypothesis of (a)+(b): the probe features follow k where the classes form
+clusters that DEC finds. In this pool that is the case for most image datasets and a minority of the tabular ones.
+
+**Caveats (c).** Post-hoc; uses the true labels (diagnosis only, D3); AMI at the nearest grid k (≠ true k for 14
+datasets); the image results rest on 17 datasets; k-means ran on the raw scaled rows, not in the autoencoder's
+embedding, so the effect of the embedding cannot be separated from that of DEC's training; the AMI values of the first
+26 datasets were seen before the check change (deviation above).
 
 ---
 
