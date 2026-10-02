@@ -1,0 +1,7 @@
+family,test,config,compared_with,mean_diff,ci_low,ci_high,t,p,p_holm,significant_improvement
+Q1,H1a: probe effect (D vs C),rf__D__logk,rf__C__logk,0.0173,-0.0557,0.0902,0.4758,0.6364,0.6364,False
+Q1,H1b: vs Phase 2 reference (D vs A),rf__D__logk,rf__A__logk,-0.1685,-0.3673,0.0304,-1.7025,0.0950,0.1900,False
+Q2,H2: vs median baseline,rf__D__logk,median_baseline,-0.2137,-0.4138,-0.0136,-2.1462,0.0368,0.0737,False
+Q2,H2: vs size-only k-NN,rf__D__logk,knn__B__logk,-0.1041,-0.3265,0.1183,-0.9406,0.3515,0.3515,False
+Q2,H2: vs best direct probe estimator,rf__D__logk,direct_best_probe,-0.6483,-0.8690,-0.4276,-5.9035,0.0000,0.0000,True
+Q2,H2: vs best classical estimator (T1),rf__D__logk,direct_best_t1,-5.4291,-7.6456,-3.2125,-4.9221,0.0000,0.0000,True

@@ -12,12 +12,15 @@ This file is the detailed record; the project docs only reference it
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
 > - Phase 4, static + probe meta-learner: **completed** (main run, T3, learning curve, post-hoc analysis; 2026-10-01 –
->   2026-10-02, branch `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9).
+>   2026-10-02, branch `feature/phase4-evaluation`, merged into `master`, Section 12; design fixed before any result,
+>   Sections 12.1–12.9).
 >   Results (Sections 12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
 >   better than the median baseline, and by the §6 rule more datasets would not fix this. Post-hoc analysis (a)+(b)
 >   done (Section 12.13): the probe features carry information about k on the image datasets but not on the tabular
 >   ones. Post-hoc (c): the probes follow k where DEC/IDEC recover the classes as clusters (reading SUPPORTED,
->   Section 12.13). Next: post-hoc variants on a separate branch (`feature/posthoc-variants`).
+>   Section 12.13).
+> - Post-hoc variants (branch `feature/posthoc-variants`, Section 13, labelled post-hoc): k ≤ 10 designed
+>   2026-10-02 and done (Section 13.1): the Phase 4 conclusion holds for k ≤ 10. Next: supervisor update, then writing.
 > - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -25,8 +28,8 @@ This file is the detailed record; the project docs only reference it
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py`; post-hoc: `posthoc_probes.py`, `posthoc_cluster_agreement.py`, `slurm/run_posthoc_c.sh` |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored); post-hoc: `results/phase4_posthoc/`, `results/phase4_posthoc_c/` (committed) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py`; post-hoc: `posthoc_probes.py`, `posthoc_cluster_agreement.py`, `slurm/run_posthoc_c.sh`; post-hoc variants: `posthoc_k10.py` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored); post-hoc: `results/phase4_posthoc/`, `results/phase4_posthoc_c/` (committed); post-hoc variants: `results/posthoc_k10/` (committed), predictions in `outputs/posthoc_k10/` (git-ignored) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -61,6 +64,8 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) designed (labelled post-hoc; uses the labels for diagnosis only): `posthoc_cluster_agreement.py` + `slurm/run_posthoc_c.sh`, reading rule fixed before the run; smoke test with synthetic data and the real row-draw code passed | Section 12.13 |
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c): first cluster run stopped at dataset 27 (Engine1: a rare class absent from the probe rows); class check moved from the probe rows to the loaded dataset, classes in the probe rows recorded; reading rule unchanged; smoke test passed | Section 12.13 |
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) run (cluster, 9.3 min, commit `f4804a4`, checks passed; Engine1 the only dataset with a class missing from its probe rows): median AMI image 0.54 / tabular 0.19 (DEC); probe error falls with AMI for G3_DEC and O1_DEC (ρ −0.34, −0.42) → reading SUPPORTED; raw k-means agrees almost as well as DEC/IDEC | Section 12.13 |
+| 2026-10-02 | `feature/posthoc-variants` | Branch created from `master` after the Phase 4 merge. Post-hoc changes discussed (labelled post-hoc): pool enlargement, more meta-features, other DC algorithms and the data-type flag not pursued; variant k ≤ 10 designed before its run: `posthoc_k10.py` (reuses `train_phase4.run` unchanged); smoke test with fake probe features passed | Section 13 |
+| 2026-10-02 | `feature/posthoc-variants` | Variant k ≤ 10 run (user's PC, 33.8 min; checks passed): probes passed the screening in 3 of 50 training parts; H1a +0.02 (p = 0.64) → Phase 4 conclusion holds; RF D 2.06 vs. median 2.27 (Holm p = 0.07), gain from the image datasets; training on k ≤ 10 instead of all 100 changes nothing (RF D −0.11, p = 0.51) | Section 13.1 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -76,6 +81,7 @@ This file is the detailed record; the project docs only reference it
 10. [New, proposed meta-features](#10-new-proposed-meta-features-branch-featureproposed-metafeatures)
 11. [Phase 3 – DEC/IDEC probe runs](#11-phase-3--decidec-probe-runs-branch-featurephase3-probes)
 12. [Phase 4 – static + probe meta-learner](#12-phase-4--static--probe-meta-learner-branch-featurephase4-evaluation)
+13. [Post-hoc variants](#13-post-hoc-variants-branch-featureposthoc-variants)
 - [Appendix A – Exploratory analyses before the protocol was frozen](#appendix-a--exploratory-analyses-before-the-protocol-was-frozen)
 
 ---
@@ -1399,6 +1405,123 @@ clusters that DEC finds. In this pool that is the case for most image datasets a
 datasets); the image results rest on 17 datasets; k-means ran on the raw scaled rows, not in the autoencoder's
 embedding, so the effect of the embedding cannot be separated from that of DEC's training; the AMI values of the first
 26 datasets were seen before the check change (deviation above).
+
+---
+
+## 13. Post-hoc variants (branch `feature/posthoc-variants`)
+
+**Labelled post-hoc.** Everything in this section was designed after the Phase 4 results (Sections 12.10–12.13) were
+known. It does not replace the pre-registered results of Section 12; each variant is fixed before its own run and
+reported in full, but its results are exploratory and would need new data to be confirmed.
+
+Changes to the setup discussed with the user (2026-10-01/02), after the Phase 4 results:
+
+| candidate change | decision |
+|---|---|
+| enlarge the pool to ≈ 200 datasets | not pursued: by the §6 rule the learning curve has leveled off (Section 12.12) |
+| more meta-features | not pursued (static, pymfe and classical candidates already tested, Section 10) |
+| other deep clustering algorithms | not pursued (future work) |
+| data-type flag, probe features used on image datasets only | considered, not pursued (user decision 2026-10-02) |
+| limit the range of k | **pursued: Section 13.1** |
+| cluster–class agreement of the probe runs | post-hoc analysis (c), Section 12.13 |
+
+### 13.1 Variant: datasets with k ≤ 10 (designed 2026-10-02, before its run)
+
+**Question.** Does the Phase 4 picture change if the meta-learner only has to handle datasets with at most 10
+classes? The six datasets with k ≥ 20 cause 43% of the median baseline's total error (Section 1), and the probe
+k-grid is denser for small k (Section 11.3).
+
+- **Datasets:** the 90 datasets with k ≤ 10 (75 tabular, 15 image, 81 groups); dropped: the 4 datasets with k = 11
+  and the 6 with k ≥ 20 (8 tabular, 2 image: binary_alpha_digits, Devnagari-Script). The threshold keeps all four
+  variants of each MNIST family (k = 2, 3, 5, 10) and all 14 datasets with k = 10. Choosing datasets by their true k
+  narrows the pool filter 2 ≤ k ≤ 50 (D10) to 2 ≤ k ≤ 10; the models never see the k of a test dataset. The result
+  therefore applies to a user who knows that k is at most 10.
+- **Folds:** `data/cv_folds.csv` unchanged, restricted to the 90 datasets (the mechanism of rule P7, Section 2.8: each
+  dataset keeps its fold); test parts of 16–19, training parts of 71–74 datasets.
+- **Everything else as in Phase 4, unchanged:** `train_phase4.run` (screening inside each training part with the
+  §10.1 rule and thresholds, sets A–F × Ridge / k-NN / RF on log k, Phase 2 grids, nested tuning, median baseline,
+  direct estimators), metrics (Section 2.6; predictions clipped at 2, no upper clip), corrected t-test (Section 2.7)
+  and the test families Q1/Q2 with Holm (Section 12.6).
+- **Reading (fixed before the run):** the Phase 4 conclusion "the probe features do not improve the meta-learner"
+  also holds for k ≤ 10 unless H1a (RF D vs. RF C) is a significant improvement after Holm (p_holm < 0.05,
+  ΔMAE < 0). If it is, this is reported as a post-hoc finding that would need new data to be confirmed. Q2 is read
+  as in Section 12.6.
+- **Reference "trained on all 100" (reported only):** the Phase 4 main-run predictions of median, k-NN B, RF B, RF C
+  and RF D, scored on exactly the same test datasets (k ≤ 10) and folds, against the same configurations trained on
+  k ≤ 10 (corrected t-test, uncorrected p). Removing the large-k datasets lowers the MAE of every model because they
+  leave the test parts; this comparison shows whether removing them from the training parts changes anything.
+- **Note before the run:** post-hoc (a) found no probe signal on the tabular datasets, and (c) found that their classes
+  are rarely recovered as clusters; 75 of the 90 datasets are tabular. The screening's tabular criterion may therefore
+  exclude the probe features again (then D ≈ C); set F (probe features without screening) shows whether they carry
+  signal on k ≤ 10 on their own.
+- **Checks:** 90 / 75 / 15 datasets; the copied screening rule reproduces §10.1; the saved main-run predictions
+  reproduce `results/phase4/fold_scores.csv` (≤ 1e-9); the reference uses exactly the test datasets of this run.
+- **Implementation:** `posthoc_k10.py` (no new modelling code; imports `train_phase4.py`, `evaluation.py`,
+  `train_static.py` unchanged), on the user's PC (CPU, ≈ 20 min). Outputs: `outputs/posthoc_k10/`;
+  `results/posthoc_k10/` after a full run.
+
+**Results (2026-10-02; `results/posthoc_k10/`).** `python posthoc_k10.py` on the user's PC (33.8 min), code as
+committed. Built-in checks passed: 90 / 75 / 15 datasets; the copied screening rule reproduces §10.1 (max difference
+5e-5); the saved main-run predictions reproduce `results/phase4/fold_scores.csv` (max difference 1.1e-14); the
+reference uses the same test datasets. Fingerprints as in §12.10; main-run predictions `e0a4332d…`.
+
+**Screening.** The probe candidates passed in 3 of the 50 training parts (O3_IDEC 2×, G4_DEC 1×), the static
+candidates never (C = B). Descriptive, on all 90 datasets: no candidate would pass (largest ρ beyond size: O3_IDEC
+0.19, L1_DEC 0.17; `screen_all90.csv`).
+
+| configuration | MAE | within ±1 | Δ vs. median (uncorrected p) |
+|---|---|---|---|
+| median baseline | 2.271 ± 0.006 | 40.1% | – |
+| k-NN B (size only) | 2.162 | 43.6% | −0.11 (0.36) |
+| RF A (static 8) | 2.226 | 44.8% | −0.05 (0.43) |
+| RF B = RF C | 2.040 | 46.1% | −0.23 (0.013) |
+| **RF D (main)** | **2.058 ± 0.088** | 46.0% | −0.21 (0.037) |
+| RF E / RF F | 2.308 / 2.327 | 40.1% / 41.3% | +0.04 / +0.06 (≥ 0.41) |
+| best direct probe estimator (L1_DEC in all 50 folds) | 2.706 | 50.1% | +0.44 (< 0.001) |
+| best classical estimator (T1) | 7.487 | 36.0% | +5.22 (< 0.001) |
+
+Ridge: 2.28–2.34 for all sets. All configurations: `summary.csv`.
+
+**Pre-registered tests (rules of §12.6).** ΔMAE = RF D minus the comparison (negative = RF D better).
+
+| family | test | ΔMAE [95% interval] | p | p (Holm) | improvement claimed? |
+|---|---|---|---|---|---|
+| Q1 | H1a: RF D vs. RF C (probe effect) | +0.017 [−0.056, +0.090] | 0.636 | 0.636 | no |
+| Q1 | H1b: RF D vs. RF A | −0.168 [−0.367, +0.030] | 0.095 | 0.190 | no |
+| Q2 | RF D vs. median baseline | −0.214 [−0.414, −0.014] | 0.037 | 0.074 | no |
+| Q2 | RF D vs. size-only k-NN | −0.104 [−0.327, +0.118] | 0.352 | 0.352 | no |
+| Q2 | RF D vs. best direct probe estimator | −0.648 [−0.869, −0.428] | < 0.001 | < 0.001 | yes |
+| Q2 | RF D vs. best classical estimator (T1) | −5.429 [−7.646, −3.212] | < 0.001 | < 0.001 | yes |
+
+**Reading (as fixed):** H1a is not significant → the Phase 4 conclusion **holds** for k ≤ 10.
+
+**Reference: the same 90 test datasets, trained on k ≤ 10 vs. trained on all 100** (`reference_full_pool.csv`;
+uncorrected):
+
+| configuration | MAE, trained on k ≤ 10 | MAE, trained on all 100 | Δ [95% interval] | p |
+|---|---|---|---|---|
+| median baseline | 2.271 | 2.294 | −0.02 [−0.09, +0.04] | 0.50 |
+| k-NN B | 2.162 | 2.062 | +0.10 [−0.17, +0.37] | 0.46 |
+| RF B (= C) | 2.040 | 2.133 | −0.09 [−0.37, +0.19] | 0.51 |
+| RF D | 2.058 | 2.165 | −0.11 [−0.44, +0.22] | 0.51 |
+
+**Findings (post-hoc).**
+1. Limiting k does not change the Phase 4 conclusion: the probe features are rarely selected and give no improvement;
+   offered without screening (E, F) they are worse than the median.
+2. RF D is about 9% below the median baseline, which is not significant after Holm (p = 0.074): the same pattern as in
+   Phase 4 (−0.24, Holm p = 0.31), with a narrower interval.
+3. The gain comes from the 15 image datasets (99% of RF D's gain); on the 75 tabular datasets RF D equals the median
+   (MAE 2.09 / 2.09; `breakdown.csv`, `gain_share.csv`).
+4. Training on k ≤ 10 instead of all 100 changes nothing significant on the same test datasets. The lower MAE than in
+   Phase 4 (2.06 vs. 3.87) comes from removing the large-k datasets from the test parts.
+5. The best direct probe estimator is L1_DEC in every fold (it almost always returns k ≈ 2) and is still worse than the
+   median.
+
+**Interpretation.** The large-k tail is not the reason why the probe features fail; consistent with (a)–(c) in
+§12.13: there is no probe signal on the tabular majority.
+
+**Caveats.** Post-hoc; the subset is chosen by the true k (a narrower task); only 15 image datasets; Holm p = 0.074 is
+reported as "not significant", not as "almost significant".
 
 ---
 
