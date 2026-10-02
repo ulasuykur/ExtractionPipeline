@@ -1,0 +1,185 @@
+{
+  "by_type": {
+    "image": {
+      "ami_DEC": {
+        "median": 0.5376262245968123,
+        "q1": 0.4171552254952912,
+        "q3": 0.6522573988041703
+      },
+      "ami_IDEC": {
+        "median": 0.49915828886933195,
+        "q1": 0.3580674180955732,
+        "q3": 0.6172726790279645
+      },
+      "ami_kmeans_raw_kref": {
+        "median": 0.49838311763982496,
+        "q1": 0.3292308215343585,
+        "q3": 0.5931739747620814
+      },
+      "ami_DEC_best_over_grid": {
+        "median": 0.5773190791079452,
+        "q1": 0.5177552433217417,
+        "q3": 0.7572153441724231
+      },
+      "ami_IDEC_best_over_grid": {
+        "median": 0.5283364843509796,
+        "q1": 0.46601761974360806,
+        "q3": 0.6671119991753341
+      },
+      "datasets": 17
+    },
+    "tabular": {
+      "ami_DEC": {
+        "median": 0.1857112797527798,
+        "q1": 0.03160408767339945,
+        "q3": 0.34977719606762303
+      },
+      "ami_IDEC": {
+        "median": 0.18339936959334838,
+        "q1": 0.03020261036230723,
+        "q3": 0.33893667373406156
+      },
+      "ami_kmeans_raw_kref": {
+        "median": 0.1722977077010379,
+        "q1": 0.028655320633533654,
+        "q3": 0.3373482477254211
+      },
+      "ami_DEC_best_over_grid": {
+        "median": 0.27442324331770857,
+        "q1": 0.056051153446535204,
+        "q3": 0.44425069930281724
+      },
+      "ami_IDEC_best_over_grid": {
+        "median": 0.27049604854747955,
+        "q1": 0.05318302556986379,
+        "q3": 0.4296443147148513
+      },
+      "datasets": 83
+    }
+  },
+  "families": {
+    "img_40996": [
+      {
+        "name": "Fashion-MNIST_k2",
+        "k_true": 2,
+        "ami_DEC": 1.0,
+        "ami_IDEC": 0.985,
+        "ami_kmeans_raw_kref": 0.93
+      },
+      {
+        "name": "Fashion-MNIST_k3",
+        "k_true": 3,
+        "ami_DEC": 0.422,
+        "ami_IDEC": 0.426,
+        "ami_kmeans_raw_kref": 0.188
+      },
+      {
+        "name": "Fashion-MNIST_k5",
+        "k_true": 5,
+        "ami_DEC": 0.652,
+        "ami_IDEC": 0.637,
+        "ami_kmeans_raw_kref": 0.581
+      },
+      {
+        "name": "Fashion-MNIST",
+        "k_true": 10,
+        "ami_DEC": 0.62,
+        "ami_IDEC": 0.598,
+        "ami_kmeans_raw_kref": 0.544
+      }
+    ],
+    "img_41982": [
+      {
+        "name": "Kuzushiji-MNIST_k2",
+        "k_true": 2,
+        "ami_DEC": 0.035,
+        "ami_IDEC": 0.072,
+        "ami_kmeans_raw_kref": 0.042
+      },
+      {
+        "name": "Kuzushiji-MNIST_k3",
+        "k_true": 3,
+        "ami_DEC": 0.308,
+        "ami_IDEC": 0.244,
+        "ami_kmeans_raw_kref": 0.3
+      },
+      {
+        "name": "Kuzushiji-MNIST_k5",
+        "k_true": 5,
+        "ami_DEC": 0.417,
+        "ami_IDEC": 0.356,
+        "ami_kmeans_raw_kref": 0.376
+      },
+      {
+        "name": "Kuzushiji-MNIST",
+        "k_true": 10,
+        "ami_DEC": 0.456,
+        "ami_IDEC": 0.404,
+        "ami_kmeans_raw_kref": 0.43
+      }
+    ],
+    "img_554": [
+      {
+        "name": "mnist_784_k2",
+        "k_true": 2,
+        "ami_DEC": 0.528,
+        "ami_IDEC": 0.499,
+        "ami_kmeans_raw_kref": 0.593
+      },
+      {
+        "name": "mnist_784_k3",
+        "k_true": 3,
+        "ami_DEC": 0.869,
+        "ami_IDEC": 0.617,
+        "ami_kmeans_raw_kref": 0.759
+      },
+      {
+        "name": "mnist_784_k5",
+        "k_true": 5,
+        "ami_DEC": 0.562,
+        "ami_IDEC": 0.54,
+        "ami_kmeans_raw_kref": 0.49
+      },
+      {
+        "name": "mnist_784",
+        "k_true": 10,
+        "ami_DEC": 0.63,
+        "ami_IDEC": 0.535,
+        "ami_kmeans_raw_kref": 0.498
+      }
+    ]
+  },
+  "rho_ami_vs_probe_error": {
+    "G3_DEC": {
+      "algorithm": "DEC",
+      "all": -0.33508774327640195,
+      "tabular": -0.45325818332480766
+    },
+    "O1_DEC": {
+      "algorithm": "DEC",
+      "all": -0.4154552846428538,
+      "tabular": -0.4963030987417401
+    },
+    "L1_IDEC": {
+      "algorithm": "IDEC",
+      "all": 0.026809690476034723,
+      "tabular": 0.1474188427705895
+    }
+  },
+  "datasets_with_classes_missing_in_probe_rows": [
+    {
+      "name": "Engine1",
+      "k_true": 3,
+      "classes_in_probe_rows": 2
+    }
+  ],
+  "reading": {
+    "median_gap_image_minus_tabular": {
+      "DEC": 0.3519149448440325,
+      "IDEC": 0.31575891927598354
+    },
+    "rule1_gap_at_least_0.20": true,
+    "rule2_features_with_rho_at_most_-0.30": 2,
+    "verdict": "SUPPORTED"
+  }
+}

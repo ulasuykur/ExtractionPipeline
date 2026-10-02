@@ -11,13 +11,13 @@ This file is the detailed record; the project docs only reference it
 > - Phase 3, DEC/IDEC probe runs: **completed** (2026-09-27 – 2026-09-30, branch `feature/phase3-probes`, merged
 >   into `master`). The pilot decided O2: overcomplete K + full T1 grid (Section 11.4). Full run: 100/100 datasets
 >   → `data/probe_features.csv` (16 probe features, no missing values).
-> - Phase 4, static + probe meta-learner: **main run, T3 measures and learning curve completed** (2026-10-01, branch
->   `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9). Results (Sections
->   12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
+> - Phase 4, static + probe meta-learner: **completed** (main run, T3, learning curve, post-hoc analysis; 2026-10-01 –
+>   2026-10-02, branch `feature/phase4-evaluation`, Section 12; design fixed before any result, Sections 12.1–12.9).
+>   Results (Sections 12.10–12.12): the probe features do not improve the meta-learner, the main meta-learner is not significantly
 >   better than the median baseline, and by the §6 rule more datasets would not fix this. Post-hoc analysis (a)+(b)
 >   done (Section 12.13): the probe features carry information about k on the image datasets but not on the tabular
->   ones. Post-hoc (c) designed (2026-10-02); its first run stopped at a built-in check and is rerun after a
->   documented fix (Section 12.13). Next: (c) results, then post-hoc variants on a separate branch.
+>   ones. Post-hoc (c): the probes follow k where DEC/IDEC recover the classes as clusters (reading SUPPORTED,
+>   Section 12.13). Next: post-hoc variants on a separate branch (`feature/posthoc-variants`).
 > - Learning curve (O1): **done** for the Phase 4 main meta-learner (Section 12.12).
 >
 > The [History](#history) table is the authoritative record of what has been done.
@@ -25,8 +25,8 @@ This file is the detailed record; the project docs only reference it
 
 | | |
 |---|---|
-| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py` |
-| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored) |
+| Code | `evaluation.py` (frozen protocol), `train_static.py` (Phase 2 runner); Phase 3: `probes.py`, `run_probes.py`, `analyze_pilot.py`, `build_probe_features.py`, `slurm/`; Phase 4: `train_phase4.py`, `learning_curve.py`, `t3_measures.py`; post-hoc: `posthoc_probes.py`, `posthoc_cluster_agreement.py`, `slurm/run_posthoc_c.sh` |
+| Results | `results/phase2/` (committed), full outputs in `outputs/phase2/` (git-ignored); Phase 3: `results/phase3_pilot/`, `results/phase3_full/`, `data/probe_features.csv` (committed), raw probe outputs on the cluster in `outputs/phase3/` (git-ignored); Phase 4: `results/phase4/`, `results/phase4_t3/`, `results/phase4_lc/` (committed), predictions in `outputs/phase4/` (git-ignored); post-hoc: `results/phase4_posthoc/`, `results/phase4_posthoc_c/` (committed) |
 | Quotes | only verified quotes are used; location and verification status in [Section 9](#9-references-and-quote-verification) |
 
 ## History
@@ -60,6 +60,7 @@ This file is the detailed record; the project docs only reference it
 | 2026-10-01 | `feature/phase4-evaluation` | Post-hoc analysis (a)+(b) run (labelled post-hoc, `results/phase4_posthoc/`): no probe feature carries information about k on the 83 tabular datasets (\|ρ\| ≤ 0.15, beyond size ≤ 0.21); on the 17 image datasets several do (ρ 0.45–0.68, also beyond size), and within MNIST / Fashion-MNIST / KMNIST G3_DEC orders k almost perfectly; G1 and L1_DEC are dominated by seed noise | Section 12.13 |
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) designed (labelled post-hoc; uses the labels for diagnosis only): `posthoc_cluster_agreement.py` + `slurm/run_posthoc_c.sh`, reading rule fixed before the run; smoke test with synthetic data and the real row-draw code passed | Section 12.13 |
 | 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c): first cluster run stopped at dataset 27 (Engine1: a rare class absent from the probe rows); class check moved from the probe rows to the loaded dataset, classes in the probe rows recorded; reading rule unchanged; smoke test passed | Section 12.13 |
+| 2026-10-02 | `feature/phase4-evaluation` | Post-hoc (c) run (cluster, 9.3 min, commit `f4804a4`, checks passed; Engine1 the only dataset with a class missing from its probe rows): median AMI image 0.54 / tabular 0.19 (DEC); probe error falls with AMI for G3_DEC and O1_DEC (ρ −0.34, −0.42) → reading SUPPORTED; raw k-means agrees almost as well as DEC/IDEC | Section 12.13 |
 
 **Contents**
 0. [Purpose and scope](#0-purpose-and-scope)
@@ -1344,6 +1345,60 @@ clusters (MNIST-type images), not where they cannot (tabular data). Test: (c).
 **Caveats.** Post-hoc; 12 of the 17 image datasets come from three families; each within-family ρ rests on 4
 datasets (one swapped pair gives 0.8); MNIST is DEC's own benchmark; G1, DEC's own rule for choosing k, is
 dominated by seed noise with 3 seeds.
+
+**Results (c) (2026-10-02; `results/phase4_posthoc_c/`).** `slurm/run_posthoc_c.sh` on the cluster (worker-minor-4,
+CPU, 9.3 min), commit `f4804a4` (with the deviation above). Built-in checks passed for all 100 datasets; Engine1 is the
+only dataset with a class missing from its probe rows (2 of 3). k_ref equals the true k for 86 datasets. Fingerprints:
+`probe_features.csv` `b2ee5e5f…` (as in §12.10), `per_seed.csv` `f029d2a6…`, `pool.csv` `9eb9fcdb…`.
+
+AMI with the classes at k_ref (0 = chance, 1 = classes recovered exactly); median [quartiles]; DEC/IDEC: mean over the
+3 seeds (`summary.json`):
+
+| | DEC | IDEC | k-means on the raw rows (no DC) | DEC, best k of the grid |
+|---|---|---|---|---|
+| image (17) | 0.54 [0.42, 0.65] | 0.50 [0.36, 0.62] | 0.50 [0.33, 0.59] | 0.58 [0.52, 0.76] |
+| tabular (83) | 0.19 [0.03, 0.35] | 0.18 [0.03, 0.34] | 0.17 [0.03, 0.34] | 0.27 [0.06, 0.44] |
+
+Spearman ρ between the AMI and the probe error |log feature − log k| (negative = the probe is closer to k where the
+clusters match the classes):
+
+| feature (AMI of) | all 100 | tabular 83 | image 17* |
+|---|---|---|---|
+| G3_DEC (DEC) | −0.34 | −0.45 | −0.19 |
+| O1_DEC (DEC) | −0.42 | −0.50 | −0.05 |
+| L1_IDEC (IDEC) | +0.03 | +0.15 | −0.49 |
+
+\*Computed afterwards from `agreement_per_dataset.csv` and `data/probe_features.csv` (descriptive, not part of the
+reading rule).
+
+**Reading (as fixed):** (1) median gap image − tabular 0.35 (DEC) and 0.32 (IDEC), both ≥ 0.20; (2) ρ ≤ −0.30 for
+G3_DEC and O1_DEC (2 of 3) → **SUPPORTED**.
+
+![POST-HOC (c): cluster–class agreement and probe error](../results/phase4_posthoc_c/fig_cluster_agreement.png)
+
+**Findings (descriptive).**
+1. DEC/IDEC recover the classes as clusters far better on the image datasets than on the tabular ones. On the tabular
+   datasets the agreement is near chance (AMI < 0.1) for 37% and above 0.5 for 14% (e.g. texture 0.77, isolet 0.72,
+   seeds 0.70, har 0.68, Iris 0.66). Image exceptions: CIFAR-10 (0.10) and Kuzushiji-MNIST_k2 (0.04).
+2. Where DEC finds the classes, G3_DEC and O1_DEC are closer to the true k, also within the tabular datasets, so the
+   relation is not only the image/tabular difference. Within the 17 image datasets it is weak; L1_IDEC shows no
+   relation overall.
+3. Closer, but not close: the probes over-estimate k even where the classes are recovered. On the 22 datasets with DEC
+   AMI ≥ 0.5 the median G3_DEC is 1.6× and O1_DEC 3.2× the true k (32 datasets with AMI < 0.1: 3.4× and 8.5×);
+   Fashion-MNIST_k2 has AMI 1.00, G3_DEC 11 and O1_DEC 20. The signal is in the ordering, not in the level, which fits
+   the direct probe estimators being worse than the median (§12.10).
+4. Deep clustering adds little over k-means at the same k: on the image datasets DEC is above raw k-means in 15 of 17
+   (median +0.07 AMI), on the tabular datasets there is no difference (median −0.00; DEC higher in 36 of 83). After
+   500 probe steps, the class structure that the probes read is largely present in the scaled data already.
+5. Seed variation of the AMI is small (median spread over the 3 seeds 0.03–0.04).
+
+**Interpretation.** Consistent with the hypothesis of (a)+(b): the probe features follow k where the classes form
+clusters that DEC finds. In this pool that is the case for most image datasets and a minority of the tabular ones.
+
+**Caveats (c).** Post-hoc; uses the true labels (diagnosis only, D3); AMI at the nearest grid k (≠ true k for 14
+datasets); the image results rest on 17 datasets; k-means ran on the raw scaled rows, not in the autoencoder's
+embedding, so the effect of the embedding cannot be separated from that of DEC's training; the AMI values of the first
+26 datasets were seen before the check change (deviation above).
 
 ---
 

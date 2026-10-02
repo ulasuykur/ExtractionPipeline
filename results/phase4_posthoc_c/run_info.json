@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-02 01:19",
+  "status": "POST-HOC (designed after the Phase 4 results); diagnosis with the true labels",
+  "design": "docs/metalearner_methodology.md \u00a712.13 (c)",
+  "datasets": 100,
+  "complete": true,
+  "runtime_s": 559,
+  "pool_sha256": "9eb9fcdb2b24c91bf00f6a8c4c8ec6193fefc065c0525be6c552990c9b2033b1",
+  "probe_features_sha256": "b2ee5e5f56778865c018d60c592d0679d6cf5f0a997b12fd74c8650d83e2e921",
+  "per_seed_sha256": "f029d2a67cee354cdab291440d5f402bcada49913e94a6fc88253f71efab93e7",
+  "python": "3.11.16",
+  "numpy": "2.4.6",
+  "pandas": "3.0.5",
+  "scipy": "1.17.1",
+  "scikit-learn": "1.9.0",
+  "matplotlib": "3.10.9"
+}
